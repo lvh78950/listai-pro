@@ -88,7 +88,7 @@ async function callClaude(prompt,images=[],useSearch=false){
   const content=[...images.map(i=>({type:"image",source:{type:"base64",media_type:i.type,data:i.base64}})),{type:"text",text:prompt}];
   const body={model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content}]};
   if(useSearch) body.tools=[{type:"web_search_20250305",name:"web_search"}];
-  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   const data=await res.json();
   const text=data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
   const match=text.match(/\{[\s\S]*\}/); return match?match[0]:text;
