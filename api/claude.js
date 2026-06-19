@@ -4,18 +4,50 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const { messages, max_tokens } = req.body;
+    
+    // Convertit le format Anthropic vers Mistral
+    const mistralMessages = messages.map(msg => {
+      if (Array.isArray(msg.content)) {
+        const textParts = msg.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+        const imageParts = msg.content.filter(c => c.type === 'image');
+        if (imageParts.length > 0) {
+          return {
+            role: msg.role,
+            content: [
+              ...imageParts.map(img => ({
+                type: 'image_url',
+                image_url: `data:${img.source.media_type};base64,${img.source.data}`
+              })),
+              { type: 'text', text: textParts }
+            ]
+          };
+        }
+        return { role: msg.role, content: textParts };
+      }
+      return { role: msg.role, content: msg.content };
+    });
+
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({
+        model: 'pixtral-12b-2409',
+        messages: mistralMessages,
+        max_tokens: max_tokens || 1200,
+      }),
     });
 
     const data = await response.json();
-    res.status(200).json(data);
+    
+    // Convertit la réponse Mistral vers le format Anthropic
+    const text = data.choices?.[0]?.message?.content || '';
+    res.status(200).json({
+      content: [{ type: 'text', text }]
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
