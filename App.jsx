@@ -803,6 +803,18 @@ function TabStock({dark,session,stock,setStock,history}){
   </div>;
 }
 
+// ── REPONSE CARD ──────────────────────────────────────────────────────────────
+function ReponseCard({r,dark}){
+  const [copied,setCopied]=useState(false);
+  return <Card dark={dark}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+      <span style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase"}}>{r.label}</span>
+      <button onClick={()=>{navigator.clipboard.writeText(r.texte);setCopied(true);setTimeout(()=>setCopied(false),2000);}} style={{padding:"4px 10px",borderRadius:7,border:`1px solid ${T.border(dark)}`,background:T.card2(dark),color:copied?"#34c759":GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>{copied?"✓ Copié":"Copier"}</button>
+    </div>
+    <p style={{margin:0,fontSize:13,color:T.text(dark),lineHeight:1.7}}>{r.texte}</p>
+  </Card>;
+}
+
 // ── TAB RÉPONSES ──────────────────────────────────────────────────────────────
 function TabReponses({dark}){
   const QUESTIONS=["Toujours disponible ?","Dernière baisse de prix ?","Défauts / imperfections ?","Échange possible ?","Délai d'envoi ?","Taille dans le vrai ?","Autre question"];
@@ -834,13 +846,7 @@ function TabReponses({dark}){
     <Btn onClick={generate} disabled={loading||(question==="Autre question"&&!customQ.trim())} full>{loading?"Génération...":"✦ Générer 3 réponses"}</Btn>
     {loading&&<Spin/>}
     {reponses&&!loading&&<div style={{marginTop:12}}>
-      {reponses.reponses?.map((r,i)=>{const [c,setC]=useState(false);return <Card key={i} dark={dark}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase"}}>{r.label}</span>
-          <button onClick={()=>{navigator.clipboard.writeText(r.texte);setC(true);setTimeout(()=>setC(false),2000);}} style={{padding:"4px 10px",borderRadius:7,border:`1px solid ${T.border(dark)}`,background:T.card2(dark),color:c?"#34c759":GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>{c?"✓ Copié":"Copier"}</button>
-        </div>
-        <p style={{margin:0,fontSize:13,color:T.text(dark),lineHeight:1.7}}>{r.texte}</p>
-      </Card>;})}
+      {reponses.reponses?.map((r,i)=><ReponseCard key={i} r={r} dark={dark}/>)}
     </div>}
   </div>;
 }
