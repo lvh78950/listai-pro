@@ -3,7 +3,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const SUPA_URL = "https://csdbtnfachdxafczqnal.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzZGJ0bmZhY2hkeGFmY3pxbmFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MDA0MDQsImV4cCI6MjA5NzM3NjQwNH0.qa7YXHxjnCji0MXHvb5_geSiqAd1MlBc9B2RhUd4wpE";
-const GOLD = "#C9A96E";
+const GOLD = "#7C3AED"; // Violet électrique (couleur principale)
+const ORANGE = "#FF6B2B"; // Orange vif (accent/CTA)
+const BLUE = "#2563EB"; // Bleu électrique (secondaire)
+const GRAD = "linear-gradient(135deg,#7C3AED,#2563EB)"; // Gradient violet→bleu
+const GRAD_O = "linear-gradient(135deg,#FF6B2B,#FF9500)"; // Gradient orange
 const SHIP = [{l:"Lettre suivie",p:2.99},{l:"Colissimo S",p:3.99},{l:"Colissimo M",p:4.99},{l:"Mondial Relay S",p:3.49},{l:"Mondial Relay M",p:4.99},{l:"Colissimo L",p:6.99},{l:"Colissimo XL",p:8.99}];
 const ETAT = ["Neuf avec étiquette","Neuf sans étiquette","Très bon état","Bon état","Satisfaisant"];
 const ETAT_C = ["#34c759","#30d158","#007aff","#ff9500","#ff3b30"];
@@ -79,10 +83,11 @@ function Title({children,sub,dark}){return <div style={{marginBottom:20}}><h2 st
 
 function Btn({onClick,disabled,children,variant="gold",small,full,style={}}){
   const styles={
-    gold:{background:`linear-gradient(135deg,${GOLD},#e8c584)`,color:"#1a1a2e",border:"none"},
+    gold:{background:GRAD,color:"white",border:"none",boxShadow:"0 4px 15px rgba(124,58,237,0.4)"},
     outline:{background:"transparent",border:`1.5px solid ${GOLD}`,color:GOLD},
-    ghost:{background:"transparent",border:"1.5px solid #e5e5ea",color:"#6e6e73"},
+    ghost:{background:"transparent",border:`1.5px solid #e5e5ea`,color:"#6e6e73"},
     danger:{background:"transparent",border:"1.5px solid #ff3b30",color:"#ff3b30"},
+    orange:{background:GRAD_O,color:"white",border:"none",boxShadow:"0 4px 15px rgba(255,107,43,0.4)"},
   };
   const s=styles[variant]||styles.gold;
   return <button onClick={onClick} disabled={disabled} style={{padding:small?"8px 14px":"13px 20px",borderRadius:small?8:12,...s,fontSize:small?12:14,fontWeight:700,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.4:1,width:full?"100%":"auto",transition:"all 0.15s",letterSpacing:"0.1px",...style}}>{children}</button>;
@@ -137,12 +142,12 @@ function TutoOverlay({dark,onDone}){
   const s=TUTO_STEPS[step];
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)",padding:20}}>
     <div style={{background:T.card(dark),borderRadius:24,padding:28,maxWidth:360,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.4)",textAlign:"center"}}>
-      <div style={{fontSize:52,marginBottom:12}}>{s.icon}</div>
-      <div style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>Étape {step+1} / {TUTO_STEPS.length}</div>
+        <div style={{width:60,height:60,borderRadius:18,background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 12px",boxShadow:"0 8px 24px rgba(124,58,237,0.4)"}}>{s.icon}</div>
+      <div style={{fontSize:11,fontWeight:700,background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:8}}>Étape {step+1} / {TUTO_STEPS.length}</div>
       <h3 style={{fontSize:19,fontWeight:800,color:T.text(dark),margin:"0 0 10px",letterSpacing:"-0.2px"}}>{s.title}</h3>
       <p style={{fontSize:14,color:T.text2(dark),lineHeight:1.65,margin:"0 0 20px"}}>{s.desc}</p>
       <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:20}}>
-        {TUTO_STEPS.map((_,i)=><div key={i} style={{height:6,borderRadius:3,background:i===step?GOLD:T.border(dark),width:i===step?20:6,transition:"all .2s"}}/>)}
+        {TUTO_STEPS.map((_,i)=><div key={i} style={{height:6,borderRadius:3,background:i===step?GRAD:T.border(dark),width:i===step?20:6,transition:"all .2s"}}/>)}
       </div>
       <div style={{display:"flex",gap:8}}>
         <Btn onClick={onDone} variant="ghost" style={{flex:1}}>Passer</Btn>
@@ -185,18 +190,23 @@ function AuthScreen({onAuth,dark}){
     finally{setLoading(false);}
   };
 
-  return <div style={{minHeight:"100vh",background:T.bg(dark),display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif"}}>
-    <div style={{width:"100%",maxWidth:400}}>
+  return <div style={{minHeight:"100vh",background:dark?"#0a0a0f":"#f0f0ff",display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif"}}>
+    {/* Fond décoratif */}
+    <div style={{position:"fixed",inset:0,overflow:"hidden",zIndex:0}}>
+      <div style={{position:"absolute",top:"-20%",left:"-10%",width:"60%",height:"60%",background:"radial-gradient(circle,rgba(124,58,237,0.3),transparent 70%)",borderRadius:"50%"}}/>
+      <div style={{position:"absolute",bottom:"-20%",right:"-10%",width:"60%",height:"60%",background:"radial-gradient(circle,rgba(255,107,43,0.2),transparent 70%)",borderRadius:"50%"}}/>
+    </div>
+    <div style={{width:"100%",maxWidth:400,position:"relative",zIndex:1}}>
       <div style={{textAlign:"center",marginBottom:36}}>
-        <div style={{width:72,height:72,borderRadius:20,background:`linear-gradient(135deg,${GOLD},#e8c584)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:"#1a1a2e",fontWeight:900,margin:"0 auto 16px",boxShadow:`0 8px 24px ${GOLD}40`}}>✦</div>
-        <h1 style={{fontSize:30,fontWeight:900,color:T.text(dark),margin:"0 0 4px",letterSpacing:"-0.5px"}}>ListAI <span style={{color:GOLD}}>Pro</span></h1>
+        <div style={{width:80,height:80,borderRadius:24,background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 16px",boxShadow:"0 12px 40px rgba(124,58,237,0.5)"}}>⚡</div>
+        <h1 style={{fontSize:32,fontWeight:900,color:T.text(dark),margin:"0 0 4px",letterSpacing:"-0.5px"}}>ListAI <span style={{background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Pro</span></h1>
         <p style={{fontSize:14,color:T.text2(dark),margin:0}}>Transforme tes photos en annonces parfaites</p>
       </div>
 
-      <div style={{background:T.card(dark),borderRadius:20,border:`1px solid ${T.border(dark)}`,padding:24,boxShadow:"0 20px 60px rgba(0,0,0,0.1)"}}>
-        {mode!=="forgot"&&<div style={{display:"flex",background:T.card2(dark),borderRadius:12,padding:3,marginBottom:20,gap:3}}>
+      <div style={{background:T.card(dark),borderRadius:24,border:`1px solid ${T.border(dark)}`,padding:28,boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
+        {mode!=="forgot"&&<div style={{display:"flex",background:T.card2(dark),borderRadius:14,padding:4,marginBottom:20,gap:3}}>
           {[["login","Connexion"],["register","Inscription"]].map(([k,l])=>(
-            <button key={k} onClick={()=>{setMode(k);setError("");setSuccess("");}} style={{flex:1,padding:"9px",borderRadius:10,border:"none",background:mode===k?`linear-gradient(135deg,${GOLD},#e8c584)`:"transparent",color:mode===k?"#1a1a2e":T.text2(dark),fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>{l}</button>
+            <button key={k} onClick={()=>{setMode(k);setError("");setSuccess("");}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",background:mode===k?GRAD:"transparent",color:mode===k?"white":T.text2(dark),fontSize:13,fontWeight:700,cursor:"pointer",transition:"all .2s"}}>{l}</button>
           ))}
         </div>}
 
@@ -208,7 +218,7 @@ function AuthScreen({onAuth,dark}){
         {error&&<div style={{background:"#fff2f2",border:"1px solid #ffd0d0",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#ff3b30",fontSize:13}}>❌ {error}</div>}
         {success&&<div style={{background:"#f0fff4",border:"1px solid #c3f0ca",borderRadius:10,padding:"10px 14px",marginBottom:12,color:"#34c759",fontSize:13}}>✅ {success}</div>}
 
-        <button onClick={handle} disabled={loading} style={{width:"100%",padding:"14px",borderRadius:12,border:"none",background:loading?T.border(dark):`linear-gradient(135deg,${GOLD},#e8c584)`,color:loading?T.text2(dark):"#1a1a2e",fontSize:15,fontWeight:800,cursor:loading?"not-allowed":"pointer",marginBottom:12,letterSpacing:"0.1px"}}>
+        <button onClick={handle} disabled={loading} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:loading?T.border(dark):GRAD,color:"white",fontSize:15,fontWeight:800,cursor:loading?"not-allowed":"pointer",marginBottom:12,letterSpacing:"0.1px",boxShadow:loading?"none":"0 8px 24px rgba(124,58,237,0.4)"}}>
           {loading?"⟳ Chargement...":{login:"🚀 Se connecter",register:"✨ Créer mon compte",forgot:"📧 Envoyer le lien"}[mode]}
         </button>
 
@@ -1114,8 +1124,8 @@ export default function App(){
   const bg=T.bg(dark);
 
   if(loading)return(
-    <div style={{minHeight:"100vh",background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,fontFamily:"-apple-system,sans-serif"}}>
-      <div style={{width:56,height:56,borderRadius:16,background:`linear-gradient(135deg,${GOLD},#e8c584)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:"#1a1a2e",fontWeight:900,boxShadow:`0 8px 24px ${GOLD}40`}}>✦</div>
+    <div style={{minHeight:"100vh",background:dark?"#0a0a0f":"#f0f0ff",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,fontFamily:"-apple-system,sans-serif"}}>
+      <div style={{width:64,height:64,borderRadius:20,background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,boxShadow:"0 12px 40px rgba(124,58,237,0.5)"}}>⚡</div>
       <Spin/>
     </div>
   );
@@ -1135,41 +1145,74 @@ export default function App(){
     extension:<TabExtension dark={dark}/>,
   };
 
+  const [homeView,setHomeView]=useState(true); // true = dashboard home, false = onglet
+
+  const openTab=(t)=>{setTab(t);setHomeView(false);};
+
+  const HOME_CARDS=[
+    {id:"annonce",icon:"⚡",label:"Générer une annonce",sub:"Photos → Annonce IA en 10s",grad:"linear-gradient(135deg,#7C3AED,#2563EB)",shadow:"rgba(124,58,237,0.5)"},
+    {id:"tendances",icon:"📈",label:"Tendances & Marché",sub:"Score, prix idéal, calendrier",grad:"linear-gradient(135deg,#2563EB,#06B6D4)",shadow:"rgba(37,99,235,0.4)"},
+    {id:"marge",icon:"💰",label:"Calculateur de marge",sub:"Bénéfice net, simulateur",grad:"linear-gradient(135deg,#FF6B2B,#FF9500)",shadow:"rgba(255,107,43,0.4)"},
+    {id:"agent",icon:"🤖",label:"Agent IA",sub:"Favoris, offres, automatisation",grad:"linear-gradient(135deg,#7C3AED,#EC4899)",shadow:"rgba(124,58,237,0.4)"},
+    {id:"stock",icon:"📦",label:"Mon Stock",sub:`${stock.filter(s=>s.statut==="en_vente").length} article(s) en vente`,grad:"linear-gradient(135deg,#059669,#10B981)",shadow:"rgba(5,150,105,0.4)"},
+    {id:"reponses",icon:"💬",label:"Réponses acheteurs",sub:"Messages générés par IA",grad:"linear-gradient(135deg,#0EA5E9,#2563EB)",shadow:"rgba(14,165,233,0.4)"},
+    {id:"reopt",icon:"🔄",label:"Ré-optimiseur",sub:"Relance une annonce qui stagne",grad:"linear-gradient(135deg,#F59E0B,#FF6B2B)",shadow:"rgba(245,158,11,0.4)"},
+    {id:"ventes",icon:"📊",label:"Suivi des ventes",sub:`CA: ${ventes.reduce((s,v)=>s+(parseFloat(v.prix_vente)||0),0).toFixed(0)}€`,grad:"linear-gradient(135deg,#10B981,#059669)",shadow:"rgba(16,185,129,0.4)"},
+    {id:"historique",icon:"🕓",label:"Historique",sub:`${history.length} annonce(s) générée(s)`,grad:"linear-gradient(135deg,#6366F1,#7C3AED)",shadow:"rgba(99,102,241,0.4)"},
+    {id:"extension",icon:"🧩",label:"Extension Chrome",sub:"Installe & configure l'extension",grad:"linear-gradient(135deg,#FF6B2B,#7C3AED)",shadow:"rgba(124,58,237,0.4)"},
+  ];
+
   return(
-    <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",minHeight:"100vh",background:bg,paddingBottom:80}}>
+    <div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",minHeight:"100vh",background:dark?"#0a0a0f":homeView?"#f0f0ff":"#f5f5f7"}}>
       {showTuto&&<TutoOverlay dark={dark} onDone={()=>setShowTuto(false)}/>}
 
       {/* TOP NAV */}
-      <nav style={{background:T.card(dark),borderBottom:`1px solid ${T.border(dark)}`,padding:"0 16px",height:56,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
+      <nav style={{background:homeView?( dark?"rgba(10,10,15,0.8)":"rgba(240,240,255,0.8)"):T.card(dark),borderBottom:homeView?"none":`1px solid ${T.border(dark)}`,padding:"0 16px",height:58,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:32,height:32,borderRadius:9,background:`linear-gradient(135deg,${GOLD},#e8c584)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#1a1a2e",fontWeight:900}}>✦</div>
-          <div>
-            <span style={{fontWeight:800,fontSize:15,color:T.text(dark),letterSpacing:"-0.2px"}}>ListAI <span style={{color:GOLD}}>Pro</span></span>
-            <span style={{fontSize:10,color:"#34c759",fontWeight:700,marginLeft:6}}>☁️</span>
-          </div>
+          {!homeView&&<button onClick={()=>setHomeView(true)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>}
+          <div style={{width:34,height:34,borderRadius:10,background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 4px 12px rgba(124,58,237,0.4)"}}>⚡</div>
+          <span style={{fontWeight:900,fontSize:16,letterSpacing:"-0.3px"}}>
+            <span style={{background:GRAD,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>ListAI</span>
+            <span style={{background:GRAD_O,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}> Pro</span>
+          </span>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:10,color:T.text2(dark),maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span>
-          <button onClick={()=>setShowTuto(true)} title="Tutoriel" style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>❓</button>
-          <button onClick={handleToggleDark} title="Thème" style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{dark?"☀️":"🌙"}</button>
-          <button onClick={signOut} style={{padding:"5px 10px",borderRadius:20,border:"1px solid #ff3b3040",background:"transparent",color:"#ff3b30",fontSize:11,fontWeight:700,cursor:"pointer"}}>Déco.</button>
+          {!homeView&&<span style={{fontSize:10,color:T.text2(dark),maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span>}
+          <button onClick={()=>setShowTuto(true)} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>❓</button>
+          <button onClick={handleToggleDark} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{dark?"☀️":"🌙"}</button>
+          {homeView&&<button onClick={signOut} style={{padding:"5px 10px",borderRadius:20,border:"1px solid rgba(255,59,48,0.3)",background:"transparent",color:"#ff3b30",fontSize:11,fontWeight:700,cursor:"pointer"}}>Déco.</button>}
         </div>
       </nav>
 
-      {/* CONTENU */}
-      <div style={{maxWidth:640,margin:"0 auto",padding:"20px 14px 100px"}}>
-        {COMPONENTS[tab]||COMPONENTS.annonce}
-      </div>
+      {/* HOME DASHBOARD */}
+      {homeView&&<div style={{maxWidth:640,margin:"0 auto",padding:"20px 14px 40px"}}>
+        {/* Hero */}
+        <div style={{background:GRAD,borderRadius:24,padding:"24px 20px",marginBottom:20,position:"relative",overflow:"hidden",boxShadow:"0 12px 40px rgba(124,58,237,0.4)"}}>
+          <div style={{position:"absolute",top:-30,right:-30,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.08)"}}/>
+          <div style={{position:"absolute",bottom:-40,right:20,width:80,height:80,borderRadius:"50%",background:"rgba(255,107,43,0.3)"}}/>
+          <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:6}}>Bonjour 👋</div>
+          <div style={{fontSize:22,fontWeight:900,color:"white",marginBottom:4,letterSpacing:"-0.3px"}}>{session.user.email.split("@")[0]}</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:16}}>{history.length} annonce(s) · {stock.filter(s=>s.statut==="en_vente").length} en vente · {ventes.length} vente(s)</div>
+          <button onClick={()=>openTab("annonce")} style={{padding:"10px 20px",borderRadius:12,border:"none",background:GRAD_O,color:"white",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 16px rgba(255,107,43,0.5)"}}>⚡ Nouvelle annonce</button>
+        </div>
 
-      {/* BOTTOM NAV */}
-      <nav style={{position:"fixed",bottom:0,left:0,right:0,background:T.card(dark),borderTop:`1px solid ${T.border(dark)}`,display:"flex",overflowX:"auto",zIndex:100,scrollbarWidth:"none",backdropFilter:"blur(20px)"}}>
-        {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:"0 0 auto",padding:"8px 12px",border:"none",borderTop:`2px solid ${tab===t.id?GOLD:"transparent"}`,background:"transparent",color:tab===t.id?GOLD:T.text2(dark),fontSize:10,fontWeight:tab===t.id?700:500,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-            <span style={{fontSize:14}}>{t.icon}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </nav>
+        {/* Grid cartes */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {HOME_CARDS.map(c=>(
+            <div key={c.id} onClick={()=>openTab(c.id)} style={{background:c.grad,borderRadius:20,padding:"18px 16px",cursor:"pointer",boxShadow:`0 8px 24px ${c.shadow}`,transition:"transform .15s, box-shadow .15s",position:"relative",overflow:"hidden",minHeight:100}}>
+              <div style={{position:"absolute",top:-15,right:-15,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
+              <div style={{fontSize:26,marginBottom:8}}>{c.icon}</div>
+              <div style={{fontSize:13,fontWeight:800,color:"white",marginBottom:3,lineHeight:1.3}}>{c.label}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.75)",fontWeight:500}}>{c.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>}
+
+      {/* CONTENU ONGLET */}
+      {!homeView&&<div style={{maxWidth:640,margin:"0 auto",padding:"20px 14px 40px"}}>
+        {COMPONENTS[tab]||COMPONENTS.annonce}
+      </div>}
 
       {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
     </div>
