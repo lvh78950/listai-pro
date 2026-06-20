@@ -58,7 +58,23 @@ async function callClaude(prompt,images=[],useSearch=false){
   const text=data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
   const match=text.match(/\{[\s\S]*\}/);return match?match[0]:text;
 }
-function pj(t){try{return JSON.parse(t.replace(/```json|```/g,"").trim());}catch{return null;}}
+function pj(t){
+  try{
+    // Nettoie les backticks et espaces
+    let clean=t.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+    // Cherche le premier { et dernier }
+    const start=clean.indexOf("{");
+    const end=clean.lastIndexOf("}");
+    if(start!==-1&&end!==-1&&end>start){
+      clean=clean.slice(start,end+1);
+      return JSON.parse(clean);
+    }
+    return JSON.parse(clean);
+  }catch(e){
+    console.error("pj parse error:",t?.slice(0,200));
+    return null;
+  }
+}
 
 // ── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
 function useTheme(){
