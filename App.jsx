@@ -252,16 +252,32 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
 
   const generate=async()=>{
     setLoading(true);setError(null);
-    const prompt=`Expert Vinted 5 ans. Analyse ${images.length} photo(s). Prix: ${prix?prix+"€":"à estimer"}, état: ${ETAT[etat]}${infos?", notes: "+infos:""}. UNIQUEMENT JSON: {"titre":"max 60 chars","categorie":"catégorie Vinted","sous_categorie":"sous-catégorie","marque":"marque","taille":"taille","couleur":"couleur","matiere":"matière","etat":"${ETAT[etat]}","prix_recommande":"chiffre","prix_mini":"chiffre","description":"6-8 lignes vendeuses","hashtags":"15 #hashtags","conseil":"1 conseil"}`;
+    const prompt=`Tu es un expert vendeur Vinted streetwear avec 5 ans d'expérience. Analyse ces ${images.length} photo(s) d'article. Prix souhaité: ${prix?prix+"€":"à estimer"}, état: ${ETAT[etat]}${infos?", infos: "+infos:""}.
+
+Génère une annonce Vinted ULTRA vendeuse avec ce format exact pour la description :
+- Commence par 🔥 et une accroche percutante
+- Utilise des emojis (👌💯🧼✅📏💥) pour structurer
+- Section état avec checklist ✅
+- Section taille EU et US
+- Termine par une phrase style + envoi rapide
+- Ligne de séparation ———————————————-
+- Hashtags cliquables format: #Hashtag (sans lien)
+
+UNIQUEMENT JSON (pas de markdown, pas de backticks):
+{"titre":"max 60 chars percutant","categorie":"catégorie Vinted exacte","sous_categorie":"sous-catégorie exacte","marque":"marque détectée","taille":"taille EU","couleur":"couleur(s)","matiere":"matière","etat":"${ETAT[etat]}","prix_recommande":"chiffre entier","prix_mini":"chiffre entier","description":"description complète avec emojis et structure comme demandé","hashtags":"16 hashtags streetwear pertinents séparés par espaces format #Tag","conseil":"1 conseil photo ou prix"}`;
     try{
       const text=await callClaude(prompt,images);
-      const parsed=pj(text);if(!parsed)throw new Error();
+      const parsed=pj(text);
+      if(!parsed||!parsed.titre)throw new Error("JSON invalide");
       setResult(parsed);
       const entry={date:new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),result:parsed};
       const saved=await db.addListing(session.user.id,entry,session.access_token);
       setHistory(prev=>[{...entry,id:saved?.id||Date.now().toString()},...prev].slice(0,50));
       setStep(3);
-    }catch{setError("Analyse échouée. Vérifie que tes photos sont nettes et réessaie.");}
+    }catch(e){
+      console.error("Erreur génération:",e);
+      setError("Génération échouée. Vérifie ta connexion et réessaie. Si le problème persiste, la clé API Mistral est peut-être expirée.");
+    }
     finally{setLoading(false);}
   };
 
@@ -405,7 +421,7 @@ function TabTendances({dark}){
   const analyse=async q=>{
     const s=q||query;if(!s.trim())return;setLoading(true);setResult(null);setError(null);
     const p=`Expert revendeur Vinted. Analyse "${s}". UNIQUEMENT JSON: {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
-    try{const t=await callClaude(p,[],true);const r=pj(t);if(!r)throw new Error();setResult(r);}catch{setError("Analyse échouée.");}finally{setLoading(false);}
+    try{const t=await callClaude(p,[],true);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
   };
 
   const analyseScore=async()=>{
@@ -863,7 +879,7 @@ function TabReopt({dark}){
   const optimise=async()=>{
     if(!ancienneDesc.trim())return;setLoading(true);setResult(null);
     const p=`Expert Vinted. Ré-optimise cette annonce qui "${RAISONS.find(r=>r[0]===raison)[1]}". Titre: "${ancienTitre}", Description: "${ancienneDesc}". UNIQUEMENT JSON: {"nouveau_titre":"max 60 chars","nouvelle_description":"6-8 lignes","nouveaux_hashtags":"15 #hashtags","changements":["c1","c2","c3"],"conseil_prix":"conseil"}`;
-    try{const t=await callClaude(p);const r=pj(t);if(r)setResult(r);}catch{}finally{setLoading(false);}
+    try{const t=await callClaude(p);const r=pj(t);if(r)setResult(r);}catch(e){console.error(e);}finally{setLoading(false);}
   };
 
   return <div>
