@@ -233,13 +233,13 @@ function AuthScreen({onAuth,dark}){
 
 // ── TAB ANNONCE ───────────────────────────────────────────────────────────────
 function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToShow}){
-  const [step,setStep]=useState(resultToShow?3:1);
+  const [step,setStep]=useState(1);
   const [images,setImages]=useState([]);
   const [prix,setPrix]=useState("");
   const [etat,setEtat]=useState(0);
   const [infos,setInfos]=useState("");
   const [loading,setLoading]=useState(false);
-  const [result,setResult]=useState(resultToShow?.result||null);
+  const [result,setResult]=useState(null);
   const [error,setError]=useState(null);
   const [dragOver,setDragOver]=useState(false);
   const [toast,setToast]=useState(false);
@@ -1081,6 +1081,7 @@ export default function App(){
   const [resultToShow,setResultToShow]=useState(null);
   const [toast,setToast]=useState(null);
   const [showTuto,setShowTuto]=useState(false);
+  const [homeView,setHomeView]=useState(true);
 
   useEffect(()=>{
     const stored=loadSession();
@@ -1150,8 +1151,6 @@ export default function App(){
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
   };
-
-  const [homeView,setHomeView]=useState(true); // true = dashboard home, false = onglet
 
   const openTab=(t)=>{setTab(t);setHomeView(false);};
 
