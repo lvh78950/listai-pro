@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'pixtral-12b-2409',
+      model: 'pixtral-12b-latest',
         messages: mistralMessages,
         max_tokens: max_tokens || 1200,
       }),
