@@ -1230,9 +1230,9 @@ function TabPublications({dark,session,history}){
     {pubQueue.length>0&&<Card dark={dark}>
       <Label dark={dark}>⏳ File de l extension ({pubQueue.length})</Label>
       {pubQueue.map((l,i)=>(
-        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<pubQueue.length-1?:"none"}}>
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<pubQueue.length-1?`1px solid ${T.border(dark)}`:"none"}}>
           <div>
-            <div style={{fontSize:12,fontWeight:600,color:T.text(dark)}}>{l.titre||}</div>
+            <div style={{fontSize:12,fontWeight:600,color:T.text(dark)}}>{l.titre||`Article ${i+1}`}</div>
             <div style={{fontSize:10,color:T.text2(dark)}}>{l.prix_recommande}€ · {l.marque}</div>
           </div>
           <span style={{fontSize:10,padding:"3px 8px",borderRadius:20,background:`${GOLD}15`,color:GOLD,fontWeight:700}}>#{i+1}</span>
@@ -1243,7 +1243,7 @@ function TabPublications({dark,session,history}){
     {extLog.length>0&&<Card dark={dark}>
       <Label dark={dark}>📋 Journal récent</Label>
       {extLog.slice(0,8).map((item,i)=>(
-        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<Math.min(extLog.length,8)-1?:"none"}}>
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<Math.min(extLog.length,8)-1?`1px solid ${T.border(dark)}`:"none"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <span style={{width:8,height:8,borderRadius:"50%",background:STATUS_C[item.action]||T.text3(dark),display:"inline-block",flexShrink:0}}/>
             <div>
@@ -1256,7 +1256,7 @@ function TabPublications({dark,session,history}){
       ))}
     </Card>}
 
-    {!selectedListing&&extLog.length===0&&pubQueue.length===0&&<Card dark={dark} style={{borderLeft:}}>
+    {!selectedListing&&extLog.length===0&&pubQueue.length===0&&<Card dark={dark} style={{borderLeft:`3px solid ${GOLD}`}}>
       <Label dark={dark} style={{color:GOLD}}>💡 Pour publier</Label>
       <div style={{fontSize:12,color:T.text(dark),lineHeight:1.8}}>
         <div>1. Sélectionne une annonce</div>
