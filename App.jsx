@@ -461,7 +461,7 @@ function TabTendances({dark}){
   const analyse=async q=>{
     const s=q||query;if(!s.trim())return;setLoading(true);setResult(null);setError(null);
     const p=`Expert revendeur Vinted. Analyse "${s}". UNIQUEMENT JSON: {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
-    try{const t=await callClaude(p,[],true);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
+    try{const t=await callClaude(p);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
   };
 
   const analyseScore=async()=>{
@@ -473,7 +473,7 @@ function TabTendances({dark}){
   const analyseConcurrence=async()=>{
     if(!concuQ.trim())return;setConcuL(true);setConcuR(null);
     const p=`Expert Vinted. Concurrence pour "${concuQ}". UNIQUEMENT JSON: {"nb_annonces_estim":"150-200","prix_moyen":"28€","prix_min":"8€","prix_max":"65€","etat_dominant":"Très bon état","points_differenciants":["av1","av2","av3"],"conseil_positionnement":"conseil","meilleur_moment":"Jeudi-vendredi 19h"}`;
-    try{const t=await callClaude(p,[],true);const r=pj(t);if(r)setConcuR(r);}catch{}finally{setConcuL(false);}
+    try{const t=await callClaude(p);const r=pj(t);if(r)setConcuR(r);}catch{}finally{setConcuL(false);}
   };
 
   const sC=s=>s>=9?"#34c759":s>=7?"#ff9500":"#6e6e73";
