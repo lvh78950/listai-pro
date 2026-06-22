@@ -539,8 +539,14 @@ Description: "${scoreA.desc}"
 Prix: ${scoreA.prix||"?"}€`;
     try{
       const t=await callClaude(prompt);
-      const get=(key)=>{const m=t.match(new RegExp(`${key}:(.+)`));return m?m[1].trim():null;};
-      const getAll=(key)=>t.match(new RegExp(`${key}:(.+)`,"g"))?.map(l=>l.replace(`${key}:`,"").trim())||[];
+      const get=(key)=>{const m=t.match(new RegExp(key+"\\s*:(.+)","i"));return m?m[1].trim():null;};
+      const getAll=(key)=>{
+        const ms=t.match(new RegExp(key+"\\s*:(.+)","gi"));
+        if(ms&&ms.length>0)return ms.map(l=>l.replace(new RegExp(key+"\\s*:","i"),"").trim()).filter(l=>l.length>1);
+        const sec=t.match(new RegExp(key+"[^\\n]*\\n([\\s\\S]*?)(?=\\n[A-Z_]+:|$)","i"));
+        if(sec)return sec[1].split("\n").map(l=>l.replace(/^[-•*\d.]+\s*/,"").trim()).filter(l=>l.length>2);
+        return[];
+      };
       const r={
         score_global:get("SCORE_GLOBAL")||"7/10",
         scores:{titre:get("SCORE_TITRE")||"?",description:get("SCORE_DESC")||"?",prix:get("SCORE_PRIX")||"?"},
