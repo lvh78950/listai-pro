@@ -494,7 +494,7 @@ MOT_CLE:[mot3]
 CONSEIL:[un conseil pratique court]
 ASTUCE_PHOTO:[un conseil photo court]`;
     try{
-      const t=await callClaude(prompt);
+      const raw2=await callClaude(prompt);const t=raw2.replace(/\*\*/g,"").replace(/\*/g,"").trim();
       const get=(key)=>{const m=t.match(new RegExp(`${key}:(.+)`));return m?m[1].trim():null;};
       const getAll=(key)=>t.match(new RegExp(`${key}:(.+)`,"g"))?.map(l=>l.replace(`${key}:`,"").trim())||[];
       const r={
@@ -538,7 +538,8 @@ Titre: "${scoreA.titre||"(sans titre)"}"
 Description: "${scoreA.desc}"
 Prix: ${scoreA.prix||"?"}€`;
     try{
-      const t=await callClaude(prompt);
+      const raw=await callClaude(prompt);
+      const t=raw.replace(/\*\*/g,"").replace(/\*/g,"").trim();
       const get=(key)=>{const m=t.match(new RegExp(key+"\\s*:(.+)","i"));return m?m[1].trim():null;};
       const getAll=(key)=>{
         const ms=t.match(new RegExp(key+"\\s*:(.+)","gi"));
@@ -565,7 +566,7 @@ Prix: ${scoreA.prix||"?"}€`;
 Reponds UNIQUEMENT avec cet objet JSON sans markdown:
 {"nb_annonces_estim":"150-200","prix_moyen":"28€","prix_min":"8€","prix_max":"65€","etat_dominant":"Très bon état","points_differenciants":["avantage 1","avantage 2","avantage 3"],"conseil_positionnement":"un conseil concret","meilleur_moment":"Jeudi-vendredi 19h"}`;
     try{
-      const t=await callClaude(prompt);
+      const raw2=await callClaude(prompt);const t=raw2.replace(/\*\*/g,"").replace(/\*/g,"").trim();
       const r=parseRobuste(t);
       if(r)setConcuR(r);
     }catch{}
