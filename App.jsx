@@ -1304,7 +1304,7 @@ export default function App(){
 
   const loadUserData=async sess=>{
     setSession(sess);
-    try{const prefs=await db.getPrefs(sess.user.id,sess.access_token);if(prefs&&prefs.dark!==undefined){/* theme handled by localStorage */}}catch{}
+    
     const migKey=`listai_migrated_${sess.user.id}`;
     if(!localStorage.getItem(migKey)){
       const count=await db.migrate(sess.user.id,sess.access_token);
