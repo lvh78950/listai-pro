@@ -63,39 +63,20 @@ function pj(t){
     let clean=t.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
     const start=clean.indexOf("{");
     const end=clean.lastIndexOf("}");
-    if(start!==-1&&end!==-1&&end>start){
-      clean=clean.slice(start,end+1);
-    }
-    // Tente le parse direct
+    if(start!==-1&&end!==-1&&end>start) clean=clean.slice(start,end+1);
+    // Parse direct
     try{ return JSON.parse(clean); }catch{}
-    // Fallback: extrait les champs un par un avec regex
-    const extract=(key)=>{
-      const r=new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`,"s");
-      const m=clean.match(r);
-      return m?m[1].replace(/\\n/g,"\n").replace(/\\"/g,'"'):"";
-    };
-    const extractNum=(key)=>{
-      const r=new RegExp(`"${key}"\\s*:\\s*"?([0-9]+)"?`);
-      const m=clean.match(r);
-      return m?m[1]:"";
-    };
-    return {
-      titre:extract("titre"),
-      categorie:extract("categorie"),
-      sous_categorie:extract("sous_categorie"),
-      marque:extract("marque"),
-      taille:extract("taille"),
-      couleur:extract("couleur"),
-      matiere:extract("matiere"),
-      etat:extract("etat"),
-      prix_recommande:extractNum("prix_recommande"),
-      prix_mini:extractNum("prix_mini"),
-      description:extract("description"),
-      hashtags:extract("hashtags"),
-      conseil:extract("conseil"),
-    };
+    // Fallback regex - remplace les sauts de ligne dans les strings
+    try{
+      const fixed=clean.replace(/:\s*"([\s\S]*?)"/g,(m,v)=>{
+        const escaped=v.replace(/\n/g,"\\n").replace(/\r/g,"").replace(/\t/g,"\\t");
+        return `: "${escaped}"`;
+      });
+      return JSON.parse(fixed);
+    }catch{}
+    return null;
   }catch(e){
-    console.error("pj parse error:",t?.slice(0,200));
+    console.error("pj error:",e.message,t?.slice(0,100));
     return null;
   }
 }
@@ -292,19 +273,13 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
 
   const generate=async()=>{
     setLoading(true);setError(null);
-    const prompt=`Tu es un expert vendeur Vinted streetwear avec 5 ans d'expérience. Analyse ces ${images.length} photo(s) d'article. Prix souhaité: ${prix?prix+"€":"à estimer"}, état: ${ETAT[etat]}${infos?", infos: "+infos:""}.
+    const prompt=`Tu es un expert vendeur Vinted streetwear avec 5 ans d'experience. Analyse ces ${images.length} photo(s). Prix souhaite: ${prix?prix+"EUR":"a estimer"}, etat: ${ETAT[etat]}${infos?", infos: "+infos:""}.
 
-Génère une annonce Vinted ULTRA vendeuse avec ce format exact pour la description :
-- Commence par 🔥 et une accroche percutante
-- Utilise des emojis (👌💯🧼✅📏💥) pour structurer
-- Section état avec checklist ✅
-- Section taille EU et US
-- Termine par une phrase style + envoi rapide
-- Ligne de séparation ———————————————-
-- Hashtags cliquables format: #Hashtag (sans lien)
+Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans emojis dans les cles ou valeurs simples.
+Format strict:
+{"titre":"max 60 chars","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"description complete avec emojis et structure vendeuse sur plusieurs lignes","hashtags":"#Nike #AirMax #Streetwear #Sneakers #LimitedEdition #Hype","conseil":"un conseil pratique"}
 
-UNIQUEMENT JSON (pas de markdown, pas de backticks):
-{"titre":"max 60 chars percutant","categorie":"catégorie Vinted exacte","sous_categorie":"sous-catégorie exacte","marque":"marque détectée","taille":"taille EU","couleur":"couleur(s)","matiere":"matière","etat":"${ETAT[etat]}","prix_recommande":"chiffre entier","prix_mini":"chiffre entier","description":"description complète avec emojis et structure comme demandé","hashtags":"16 hashtags streetwear pertinents séparés par espaces format #Tag","conseil":"1 conseil photo ou prix"}`;
+Important: prix_recommande et prix_mini doivent etre des nombres SANS le symbole euro.`;
     try{
       const text=await callClaude(prompt,images);
       const parsed=pj(text);
