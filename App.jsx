@@ -67,22 +67,32 @@ async function callClaude(prompt,images=[]){
 function pj(t){
   try{
     if(!t)return null;
+    // Nettoie tous les formats markdown possibles
     let clean=t.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+    // Extrait uniquement le JSON entre { }
     const start=clean.indexOf("{");
     const end=clean.lastIndexOf("}");
-    if(start!==-1&&end!==-1&&end>start)clean=clean.slice(start,end+1);
-    try{return JSON.parse(clean);}catch{}
+    if(start!==-1&&end!==-1&&end>start) clean=clean.slice(start,end+1);
+    // Parse direct
+    try{ return JSON.parse(clean); }catch{}
+    // Fallback : échappe les caractères spéciaux dans les valeurs string
     try{
-      const fixed=clean
-        .replace(/:\s*"([\s\S]*?)"/g,(m,v)=>{
-          const escaped=v.replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/\r/g,"").replace(/\t/g,"\\t").replace(/"/g,'\\"');
-          return `:"${escaped}"`;
-        });
+      const fixed=clean.replace(/:\s*"([\s\S]*?)"/g,(m,v)=>{
+        const escaped=v
+          .replace(/\\/g,"\\\\")
+          .replace(/\n/g,"\\n")
+          .replace(/\r/g,"")
+          .replace(/\t/g,"\\t")
+          .replace(/"/g,'\\"');
+        return `:"${escaped}"`;
+      });
       return JSON.parse(fixed);
     }catch{}
     return null;
-  }catch(e){return null;}
-}
+  }catch(e){
+    console.error("pj error:",e.message,t?.slice(0,100));
+    return null;
+  }
 }
 
 // ── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
@@ -439,7 +449,7 @@ function TabTendances({dark}){
 
   const analyse=async q=>{
     const s=q||query;if(!s.trim())return;setLoading(true);setResult(null);setError(null);
-    const p=`Expert revendeur Vinted. Analyse "${s}". Réponds UNIQUEMENT avec du JSON brut sans backticks sans markdown ni code block: {"score_tendance":... {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
+    const p=`Expert revendeur Vinted. Analyse "${s}". UNIQUEMENT JSON: {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
     try{const t=await callClaude(p);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
   };
 
@@ -1302,7 +1312,7 @@ export default function App(){
 
   const loadUserData=async sess=>{
     setSession(sess);
-    
+    try{const prefs=await db.getPrefs(sess.user.id,sess.access_token);if(prefs&&prefs.dark!==undefined){/* theme handled by localStorage */}}catch{}
     const migKey=`listai_migrated_${sess.user.id}`;
     if(!localStorage.getItem(migKey)){
       const count=await db.migrate(sess.user.id,sess.access_token);
