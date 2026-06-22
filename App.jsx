@@ -528,7 +528,7 @@ Reponds UNIQUEMENT avec cet objet JSON sans markdown:
     <Title dark={dark} sub="Analyse marché, score et calendrier optimal">📈 Tendances & Marché</Title>
 
     <div style={{display:"flex",gap:6,marginBottom:16,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none"}}>
-      {[["tendance","🔥 Tendances"],["score","⭐ Score"],["concurrence","🔍 Concurrence"],["calendrier","📅 Calendrier"]].map(([k,l])=>(
+      {[["tendance","🔥 Tendances"],["score","⭐ Score"],["calendrier","📅 Calendrier"]].map(([k,l])=>(
         <button key={k} onClick={()=>setSubTab(k)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${subTab===k?GOLD:T.border(dark)}`,background:subTab===k?`${GOLD}15`:"transparent",color:subTab===k?GOLD:T.text2(dark),fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all .15s"}}>{l}</button>
       ))}
     </div>
