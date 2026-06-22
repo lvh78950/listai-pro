@@ -66,25 +66,23 @@ async function callClaude(prompt,images=[]){
 }
 function pj(t){
   try{
+    if(!t)return null;
     let clean=t.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
     const start=clean.indexOf("{");
     const end=clean.lastIndexOf("}");
-    if(start!==-1&&end!==-1&&end>start) clean=clean.slice(start,end+1);
-    // Parse direct
-    try{ return JSON.parse(clean); }catch{}
-    // Fallback regex - remplace les sauts de ligne dans les strings
+    if(start!==-1&&end!==-1&&end>start)clean=clean.slice(start,end+1);
+    try{return JSON.parse(clean);}catch{}
     try{
-      const fixed=clean.replace(/:\s*"([\s\S]*?)"/g,(m,v)=>{
-        const escaped=v.replace(/\n/g,"\\n").replace(/\r/g,"").replace(/\t/g,"\\t");
-        return `: "${escaped}"`;
-      });
+      const fixed=clean
+        .replace(/:\s*"([\s\S]*?)"/g,(m,v)=>{
+          const escaped=v.replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/\r/g,"").replace(/\t/g,"\\t").replace(/"/g,'\\"');
+          return `:"${escaped}"`;
+        });
       return JSON.parse(fixed);
     }catch{}
     return null;
-  }catch(e){
-    console.error("pj error:",e.message,t?.slice(0,100));
-    return null;
-  }
+  }catch(e){return null;}
+}
 }
 
 // ── DESIGN SYSTEM ─────────────────────────────────────────────────────────────
