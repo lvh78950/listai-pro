@@ -49,14 +49,20 @@ function loadSession(){try{return JSON.parse(localStorage.getItem("listai_sessio
 function saveSession(s){try{localStorage.setItem("listai_session",JSON.stringify(s));}catch{}}
 function clearSession(){try{localStorage.removeItem("listai_session");}catch{}}
 
-async function callClaude(prompt,images=[],useSearch=false){
+async function callClaude(prompt,images=[]){
   const content=[...images.map(i=>({type:"image",source:{type:"base64",media_type:i.type,data:i.base64}})),{type:"text",text:prompt}];
   const body={model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content}]};
-  if(useSearch)body.tools=[{type:"web_search_20250305",name:"web_search"}];
   const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
   const data=await res.json();
-  const text=data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
-  const match=text.match(/\{[\s\S]*\}/);return match?match[0]:text;
+  if(data.error) throw new Error(data.error);
+  // Gère les deux formats : proxy Mistral et format Anthropic
+  if(data.content&&Array.isArray(data.content)){
+    return data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+  }
+  if(typeof data.content==="string") return data.content;
+  if(data.text) return data.text;
+  throw new Error("Format de réponse inattendu");
 }
 function pj(t){
   try{
