@@ -1160,13 +1160,13 @@ function TabPublications({dark,session,history}){
       ))}
     </div>}
 
-    <Card dark={dark} style={{borderLeft:,marginBottom:12}}>
+    <Card dark={dark} style={{borderLeft:`3px solid ${extOk?"#34c759":"#ff3b30"}`,marginBottom:12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <div style={{fontSize:13,fontWeight:700,color:T.text(dark)}}>{extOk?"🟢 Extension connectée":"🔴 Extension non détectée"}</div>
-          <div style={{fontSize:11,color:T.text2(dark),marginTop:2}}>{extOk?:"Installe l extension Chrome ListAI Pro v2"}</div>
+          <div style={{fontSize:11,color:T.text2(dark),marginTop:2}}>{extOk?`${pubQueue.length} annonce(s) en file`:"Installe l'extension Chrome ListAI Pro v2"}</div>
         </div>
-        {pubQueue.length>0&&<span style={{padding:"4px 10px",borderRadius:20,background:,color:GOLD,fontSize:12,fontWeight:800}}>{pubQueue.length} en attente</span>}
+        {pubQueue.length>0&&<span style={{padding:"4px 10px",borderRadius:20,background:`${GOLD}20`,color:GOLD,fontSize:12,fontWeight:800}}>{pubQueue.length} en attente</span>}
       </div>
     </Card>
 
@@ -1201,7 +1201,7 @@ function TabPublications({dark,session,history}){
                 {selectedListing?.id===h.id&&<span style={{fontSize:16,color:GOLD}}>✓</span>}
               </div>
               {selectedListing?.id===h.id&&<div style={{marginTop:8,display:"flex",gap:5,flexWrap:"wrap"}}>
-                {[h.result?.categorie,h.result?.etat,h.result?.couleur].filter(Boolean).map(tag=><span key={tag} style={{padding:"2px 8px",borderRadius:20,background:,color:GOLD,fontSize:10,fontWeight:600}}>{tag}</span>)}
+                {[h.result?.categorie,h.result?.etat,h.result?.couleur].filter(Boolean).map(tag=><span key={tag} style={{padding:"2px 8px",borderRadius:20,background:`${GOLD}15`,color:GOLD,fontSize:10,fontWeight:600}}>{tag}</span>)}
               </div>}
             </div>
           ))}
@@ -1212,7 +1212,7 @@ function TabPublications({dark,session,history}){
       <Btn onClick={copyJSON} full style={{background:copied?"linear-gradient(135deg,#34c759,#30d158)":GRAD}}>
         {copied?"✓ JSON Copié !":"📋 Copier le JSON pour l extension"}
       </Btn>
-      <Card dark={dark} style={{borderLeft:,padding:12}}>
+      <Card dark={dark} style={{borderLeft:`3px solid #007aff`,padding:12}}>
         <div style={{fontSize:12,color:T.text(dark),lineHeight:1.8}}>
           <strong style={{color:"#007aff"}}>Étapes :</strong>
           <div>1. Copie le JSON</div>
@@ -1235,7 +1235,7 @@ function TabPublications({dark,session,history}){
             <div style={{fontSize:12,fontWeight:600,color:T.text(dark)}}>{l.titre||}</div>
             <div style={{fontSize:10,color:T.text2(dark)}}>{l.prix_recommande}€ · {l.marque}</div>
           </div>
-          <span style={{fontSize:10,padding:"3px 8px",borderRadius:20,background:,color:GOLD,fontWeight:700}}>#{i+1}</span>
+          <span style={{fontSize:10,padding:"3px 8px",borderRadius:20,background:`${GOLD}15`,color:GOLD,fontWeight:700}}>#{i+1}</span>
         </div>
       ))}
     </Card>}
