@@ -441,7 +441,7 @@ function TabTendances({dark}){
 
   const analyse=async q=>{
     const s=q||query;if(!s.trim())return;setLoading(true);setResult(null);setError(null);
-    const p=`Expert revendeur Vinted. Analyse "${s}". UNIQUEMENT JSON: {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
+    const p=`Expert revendeur Vinted. Analyse "${s}". Réponds UNIQUEMENT avec du JSON brut sans backticks sans markdown ni code block: {"score_tendance":... {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
     try{const t=await callClaude(p);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
   };
 
