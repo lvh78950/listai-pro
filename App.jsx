@@ -1106,6 +1106,170 @@ function TabExtension({dark}){
   </div>;
 }
 
+
+// ── TAB PUBLICATIONS ────────────────────────────────────────────────────────
+function TabPublications({dark,session,history}){
+  const [pubQueue,setPubQueue]=useState([]);
+  const [extLog,setExtLog]=useState([]);
+  const [extStats,setExtStats]=useState(null);
+  const [selectedListing,setSelectedListing]=useState(null);
+  const [publishMode,setPublishMode]=useState("direct");
+  const [copied,setCopied]=useState(false);
+  const [toast2,setToast2]=useState(null);
+
+  useEffect(()=>{
+    const onMsg=(e)=>{
+      if(e.data?.type==="LISTAI_EXT_STATE"){
+        setPubQueue(e.data.publishQueue||[]);
+        setExtLog((e.data.log||[]).filter(l=>["published","price_drop"].includes(l.action)));
+        setExtStats(e.data.stats||null);
+      }
+    };
+    window.addEventListener("message",onMsg);
+    try{const q=localStorage.getItem("listai_pub_queue");if(q)setPubQueue(JSON.parse(q));}catch{}
+    return()=>window.removeEventListener("message",onMsg);
+  },[]);
+
+  const MODES=[
+    {k:"direct",icon:"⚡",label:"Direct",desc:"Remplit /items/new automatiquement"},
+    {k:"auto",icon:"🤖",label:"Auto brouillon",desc:"L IA détecte tes brouillons avec photos"},
+    {k:"manual",icon:"✍️",label:"Manuel",desc:"Tu choisis toi-même le brouillon"},
+  ];
+
+  const copyJSON=()=>{
+    if(!selectedListing)return;
+    const listing={titre:selectedListing.result?.titre,description:selectedListing.result?.description,prix_recommande:selectedListing.result?.prix_recommande,marque:selectedListing.result?.marque,taille:selectedListing.result?.taille,etat:selectedListing.result?.etat,categorie:selectedListing.result?.categorie,sous_categorie:selectedListing.result?.sous_categorie,couleur:selectedListing.result?.couleur};
+    navigator.clipboard.writeText(JSON.stringify(listing,null,2));
+    setCopied(true);setTimeout(()=>setCopied(false),2500);
+    setToast2("✓ JSON copié ! Colle dans l extension → onglet Publier");
+    setTimeout(()=>setToast2(null),2500);
+  };
+
+  const STATUS_C={published:"#34c759",price_drop:"#ff9500",message:"#007aff",offer:GOLD};
+  const extOk=typeof chrome!=="undefined"&&!!chrome?.runtime;
+
+  return <div>
+    <Title dark={dark} sub="Gère la file de publication et suit les publications">📤 Publications</Title>
+
+    {extStats&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+      {[["Publiés",extStats.msgSent??0,"#34c759"],["Offres",extStats.offersSent??0,GOLD],["Ventes",extStats.salesDetected??0,ORANGE]].map(([l,v,c])=>(
+        <Card key={l} dark={dark} style={{textAlign:"center",padding:14,marginBottom:0}}>
+          <div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div>
+          <div style={{fontSize:10,color:T.text2(dark),marginTop:3,fontWeight:600}}>{l}</div>
+        </Card>
+      ))}
+    </div>}
+
+    <Card dark={dark} style={{borderLeft:,marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:T.text(dark)}}>{extOk?"🟢 Extension connectée":"🔴 Extension non détectée"}</div>
+          <div style={{fontSize:11,color:T.text2(dark),marginTop:2}}>{extOk?:"Installe l extension Chrome ListAI Pro v2"}</div>
+        </div>
+        {pubQueue.length>0&&<span style={{padding:"4px 10px",borderRadius:20,background:,color:GOLD,fontSize:12,fontWeight:800}}>{pubQueue.length} en attente</span>}
+      </div>
+    </Card>
+
+    <Card dark={dark}>
+      <Label dark={dark}>⚙️ Mode de publication</Label>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {MODES.map(m=>(
+          <div key={m.k} onClick={()=>setPublishMode(m.k)} style={{padding:"10px 14px",borderRadius:10,cursor:"pointer",border:,background:publishMode===m.k?:T.card2(dark),display:"flex",alignItems:"center",gap:10,transition:"all .15s"}}>
+            <span style={{fontSize:20}}>{m.icon}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:publishMode===m.k?700:500,color:publishMode===m.k?GOLD:T.text(dark)}}>{m.label}</div>
+              <div style={{fontSize:11,color:T.text2(dark)}}>{m.desc}</div>
+            </div>
+            <div style={{width:14,height:14,borderRadius:"50%",border:,background:publishMode===m.k?GOLD:"transparent"}}/>
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    <Card dark={dark}>
+      <Label dark={dark}>📝 Annonce à publier</Label>
+      {history.length===0
+        ?<Empty emoji="📝" title="Aucune annonce générée" sub="Génère d abord une annonce dans l onglet ✦"/>
+        :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {history.slice(0,8).map(h=>(
+            <div key={h.id} onClick={()=>setSelectedListing(selectedListing?.id===h.id?null:h)} style={{padding:"12px 14px",borderRadius:12,cursor:"pointer",border:,background:selectedListing?.id===h.id?:T.card2(dark),transition:"all .15s"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{flex:1,marginRight:8}}>
+                  <div style={{fontSize:13,fontWeight:700,color:T.text(dark)}}>{h.result?.titre}</div>
+                  <div style={{fontSize:10,color:T.text2(dark),marginTop:2}}>{h.date} · {h.result?.marque} · {h.result?.prix_recommande}€</div>
+                </div>
+                {selectedListing?.id===h.id&&<span style={{fontSize:16,color:GOLD}}>✓</span>}
+              </div>
+              {selectedListing?.id===h.id&&<div style={{marginTop:8,display:"flex",gap:5,flexWrap:"wrap"}}>
+                {[h.result?.categorie,h.result?.etat,h.result?.couleur].filter(Boolean).map(tag=><span key={tag} style={{padding:"2px 8px",borderRadius:20,background:,color:GOLD,fontSize:10,fontWeight:600}}>{tag}</span>)}
+              </div>}
+            </div>
+          ))}
+        </div>}
+    </Card>
+
+    {selectedListing&&<div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:10}}>
+      <Btn onClick={copyJSON} full style={{background:copied?"linear-gradient(135deg,#34c759,#30d158)":GRAD}}>
+        {copied?"✓ JSON Copié !":"📋 Copier le JSON pour l extension"}
+      </Btn>
+      <Card dark={dark} style={{borderLeft:,padding:12}}>
+        <div style={{fontSize:12,color:T.text(dark),lineHeight:1.8}}>
+          <strong style={{color:"#007aff"}}>Étapes :</strong>
+          <div>1. Copie le JSON</div>
+          <div>2. Ouvre <strong>ListAI Pro v2</strong> dans Chrome</div>
+          <div>3. Onglet <strong>Publier</strong> → colle → lance</div>
+        </div>
+      </Card>
+      <Card dark={dark}><Label dark={dark}>Aperçu JSON</Label>
+        <pre style={{background:T.card2(dark),borderRadius:8,padding:10,fontSize:10,color:T.text2(dark),lineHeight:1.6,overflow:"auto",maxHeight:120,margin:0,whiteSpace:"pre-wrap"}}>
+{JSON.stringify({titre:selectedListing.result?.titre,prix_recommande:selectedListing.result?.prix_recommande,marque:selectedListing.result?.marque,taille:selectedListing.result?.taille},null,2)}
+        </pre>
+      </Card>
+    </div>}
+
+    {pubQueue.length>0&&<Card dark={dark}>
+      <Label dark={dark}>⏳ File de l extension ({pubQueue.length})</Label>
+      {pubQueue.map((l,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<pubQueue.length-1?:"none"}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:T.text(dark)}}>{l.titre||}</div>
+            <div style={{fontSize:10,color:T.text2(dark)}}>{l.prix_recommande}€ · {l.marque}</div>
+          </div>
+          <span style={{fontSize:10,padding:"3px 8px",borderRadius:20,background:,color:GOLD,fontWeight:700}}>#{i+1}</span>
+        </div>
+      ))}
+    </Card>}
+
+    {extLog.length>0&&<Card dark={dark}>
+      <Label dark={dark}>📋 Journal récent</Label>
+      {extLog.slice(0,8).map((item,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<Math.min(extLog.length,8)-1?:"none"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:STATUS_C[item.action]||T.text3(dark),display:"inline-block",flexShrink:0}}/>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:T.text(dark)}}>{item.target||item.action}</div>
+              {item.price&&<div style={{fontSize:10,color:T.text2(dark)}}>{item.price}€</div>}
+            </div>
+          </div>
+          <div style={{fontSize:10,color:T.text3(dark)}}>{new Date(item.ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+        </div>
+      ))}
+    </Card>}
+
+    {!selectedListing&&extLog.length===0&&pubQueue.length===0&&<Card dark={dark} style={{borderLeft:}}>
+      <Label dark={dark} style={{color:GOLD}}>💡 Pour publier</Label>
+      <div style={{fontSize:12,color:T.text(dark),lineHeight:1.8}}>
+        <div>1. Sélectionne une annonce</div>
+        <div>2. Copie le JSON</div>
+        <div>3. Ouvre l extension Chrome ListAI Pro v2</div>
+        <div>4. Onglet Publier → colle → lance !</div>
+      </div>
+    </Card>}
+
+    {toast2&&<Toast msg={toast2} onDone={()=>setToast2(null)}/>}
+  </div>;
+}
+
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App(){
   const [dark,toggleDark]=useTheme();
@@ -1163,7 +1327,8 @@ export default function App(){
 
   const handleAuth=async sess=>{await loadUserData(sess);};
   const signOut=()=>{clearSession();setSession(null);setHistory([]);setStock([]);setVentes([]);};
-  const handleToggleDark=async()=>{toggleDark();if(session){try{await db.savePrefs(session.user.id,{dark:!dark},session.access_token);}catch{}}};
+  // Fix: table "preferences" n'existe pas → on ne persiste le thème que dans localStorage (géré par useTheme)
+  const handleToggleDark = () => { toggleDark(); };
 
   const bg=T.bg(dark);
 
@@ -1187,6 +1352,7 @@ export default function App(){
     ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
+    publications:<TabPublications dark={dark} session={session} history={history}/>,
   };
 
   const openTab=(t)=>{setTab(t);setHomeView(false);};
@@ -1202,6 +1368,7 @@ export default function App(){
     {id:"ventes",icon:"📊",label:"Suivi des ventes",sub:`CA: ${ventes.reduce((s,v)=>s+(parseFloat(v.prix_vente)||0),0).toFixed(0)}€`,grad:"linear-gradient(135deg,#10B981,#059669)",shadow:"rgba(16,185,129,0.4)"},
     {id:"historique",icon:"🕓",label:"Historique",sub:`${history.length} annonce(s) générée(s)`,grad:"linear-gradient(135deg,#6366F1,#7C3AED)",shadow:"rgba(99,102,241,0.4)"},
     {id:"extension",icon:"🧩",label:"Extension Chrome",sub:"Installe & configure l'extension",grad:"linear-gradient(135deg,#FF6B2B,#7C3AED)",shadow:"rgba(124,58,237,0.4)"},
+    {id:"publications",icon:"📤",label:"Publications",sub:`${history.length} annonce(s) prêtes`,grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
   ];
 
   return(
