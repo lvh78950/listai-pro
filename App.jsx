@@ -41,7 +41,7 @@ const db = {
   async addVente(uid,v,tok){return supa.insert("ventes",{user_id:uid,article:v.article,prix_vente:v.prix_vente||"",prix_achat:v.prix_achat||"",plateforme:v.plateforme||"Vinted",date:v.date||""},tok);},
   async delVente(uid,id,tok){return supa.delete("ventes",id,tok);},
   async getPrefs(uid,tok){const d=await supa.select("preferences",{user_id:uid},tok);return Array.isArray(d)&&d.length>0?d[0]:null;},
-  async savePrefs(uid,p,tok){return supa.upsert("preferences",{user_id:uid,...p,updated_at:new Date().toISOString()},"user_id",tok);},
+  
   async migrate(uid,tok){try{let count=0;const lsL=JSON.parse(localStorage.getItem("vh2")||"[]");const lsS=JSON.parse(localStorage.getItem("listai_stock")||"[]");const lsV=JSON.parse(localStorage.getItem("listai_ventes")||"[]");for(const e of lsL.slice(0,50)){await supa.insert("listings",{user_id:uid,date:e.date,result:e.result},tok);count++;}for(const s of lsS){await supa.insert("stock",{user_id:uid,titre:s.titre,marque:s.marque||"",taille:s.taille||"",prix:s.prix||"",plateforme:s.plateforme||"Vinted",etat:s.etat||"",notes:s.notes||"",statut:s.statut||"en_vente",date_ajout:s.dateAjout||""},tok);count++;}for(const v of lsV){await supa.insert("ventes",{user_id:uid,article:v.article,prix_vente:v.prix_vente||"",prix_achat:v.prix_achat||"",plateforme:v.plateforme||"Vinted",date:v.date||""},tok);count++;}if(lsL.length)localStorage.removeItem("vh2");if(lsS.length)localStorage.removeItem("listai_stock");if(lsV.length)localStorage.removeItem("listai_ventes");return count;}catch{return 0;}}
 };
 
