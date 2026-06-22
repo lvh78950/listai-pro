@@ -1174,13 +1174,13 @@ function TabPublications({dark,session,history}){
       <Label dark={dark}>⚙️ Mode de publication</Label>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {MODES.map(m=>(
-          <div key={m.k} onClick={()=>setPublishMode(m.k)} style={{padding:"10px 14px",borderRadius:10,cursor:"pointer",border:,background:publishMode===m.k?:T.card2(dark),display:"flex",alignItems:"center",gap:10,transition:"all .15s"}}>
+          <div key={m.k} onClick={()=>setPublishMode(m.k)} style={{padding:"10px 14px",borderRadius:10,cursor:"pointer",border:`2px solid ${publishMode===m.k?"#7C3AED":T.border(dark)}`,background:publishMode===m.k?`${"#7C3AED"}12`:T.card2(dark),display:"flex",alignItems:"center",gap:10,transition:"all .15s"}}>
             <span style={{fontSize:20}}>{m.icon}</span>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:publishMode===m.k?700:500,color:publishMode===m.k?GOLD:T.text(dark)}}>{m.label}</div>
               <div style={{fontSize:11,color:T.text2(dark)}}>{m.desc}</div>
             </div>
-            <div style={{width:14,height:14,borderRadius:"50%",border:,background:publishMode===m.k?GOLD:"transparent"}}/>
+            <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${publishMode===m.k?"#7C3AED":T.border(dark)}`,background:publishMode===m.k?"#7C3AED":"transparent"}}/>
           </div>
         ))}
       </div>
@@ -1192,7 +1192,7 @@ function TabPublications({dark,session,history}){
         ?<Empty emoji="📝" title="Aucune annonce générée" sub="Génère d abord une annonce dans l onglet ✦"/>
         :<div style={{display:"flex",flexDirection:"column",gap:8}}>
           {history.slice(0,8).map(h=>(
-            <div key={h.id} onClick={()=>setSelectedListing(selectedListing?.id===h.id?null:h)} style={{padding:"12px 14px",borderRadius:12,cursor:"pointer",border:,background:selectedListing?.id===h.id?:T.card2(dark),transition:"all .15s"}}>
+            <div key={h.id} onClick={()=>setSelectedListing(selectedListing?.id===h.id?null:h)} style={{padding:"12px 14px",borderRadius:12,cursor:"pointer",border:`2px solid ${selectedListing?.id===h.id?"#7C3AED":T.border(dark)}`,background:selectedListing?.id===h.id?`${"#7C3AED"}10`:T.card2(dark),transition:"all .15s"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{flex:1,marginRight:8}}>
                   <div style={{fontSize:13,fontWeight:700,color:T.text(dark)}}>{h.result?.titre}</div>
