@@ -290,7 +290,7 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
     const prompt=`Tu es un expert vendeur Vinted streetwear avec 5 ans d'experience. Analyse ces ${images.length} photo(s). Prix souhaite: ${prix?prix+"EUR":"a estimer"}, etat: ${ETAT[etat]}${infos?", infos: "+infos:""}.
 
 Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans emojis dans les cles ou valeurs simples.
-Format strict:
+Format strict (titre en minuscules avec majuscule seulement au debut et pour les noms propres/marques):
 {"titre":"max 60 chars","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"description complete avec emojis et structure vendeuse sur plusieurs lignes","hashtags":"#Nike #AirMax #Streetwear #Sneakers #LimitedEdition #Hype","conseil":"un conseil pratique"}
 
 Important: prix_recommande et prix_mini doivent etre des nombres SANS le symbole euro.`;
