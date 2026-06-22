@@ -60,16 +60,40 @@ async function callClaude(prompt,images=[],useSearch=false){
 }
 function pj(t){
   try{
-    // Nettoie les backticks et espaces
     let clean=t.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-    // Cherche le premier { et dernier }
     const start=clean.indexOf("{");
     const end=clean.lastIndexOf("}");
     if(start!==-1&&end!==-1&&end>start){
       clean=clean.slice(start,end+1);
-      return JSON.parse(clean);
     }
-    return JSON.parse(clean);
+    // Tente le parse direct
+    try{ return JSON.parse(clean); }catch{}
+    // Fallback: extrait les champs un par un avec regex
+    const extract=(key)=>{
+      const r=new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`,"s");
+      const m=clean.match(r);
+      return m?m[1].replace(/\\n/g,"\n").replace(/\\"/g,'"'):"";
+    };
+    const extractNum=(key)=>{
+      const r=new RegExp(`"${key}"\\s*:\\s*"?([0-9]+)"?`);
+      const m=clean.match(r);
+      return m?m[1]:"";
+    };
+    return {
+      titre:extract("titre"),
+      categorie:extract("categorie"),
+      sous_categorie:extract("sous_categorie"),
+      marque:extract("marque"),
+      taille:extract("taille"),
+      couleur:extract("couleur"),
+      matiere:extract("matiere"),
+      etat:extract("etat"),
+      prix_recommande:extractNum("prix_recommande"),
+      prix_mini:extractNum("prix_mini"),
+      description:extract("description"),
+      hashtags:extract("hashtags"),
+      conseil:extract("conseil"),
+    };
   }catch(e){
     console.error("pj parse error:",t?.slice(0,200));
     return null;
