@@ -477,16 +477,44 @@ function TabTendances({dark}){
     const s=q||query;
     if(!s.trim())return;
     setLoading(true);setResult(null);setError(null);
-    const prompt=`Tu es expert revendeur Vinted. Analyse le marché pour "${s}".
-Reponds UNIQUEMENT avec cet objet JSON, sans markdown, sans backticks, sans texte avant ou apres:
-{"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"un conseil court","potentiel_revente":"Élevé","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"un conseil photo court"}`;
+    const prompt=`Tu es expert revendeur Vinted. Analyse le marché pour "${s}" et réponds avec EXACTEMENT ce format:
+SCORE_TENDANCE:[note]/10
+MOMENTUM:[En hausse / Stable / En baisse]
+FOURCHETTE_PRIX:[ex: 20-45€]
+PRIX_IDEAL:[ex: 32€]
+VITESSE_VENTE:[ex: 3-5 jours]
+POTENTIEL_REVENTE:[Élevé / Moyen / Faible]
+PUBLIC_CIBLE:[ex: Hommes 18-30]
+ETAT_OPTIMAL:[ex: Très bon état]
+MARQUE_TOP:[marque1]
+MARQUE_TOP:[marque2]
+MOT_CLE:[mot1]
+MOT_CLE:[mot2]
+MOT_CLE:[mot3]
+CONSEIL:[un conseil pratique court]
+ASTUCE_PHOTO:[un conseil photo court]`;
     try{
       const t=await callClaude(prompt);
-      const r=parseRobuste(t);
-      if(r&&r.score_tendance){setResult(r);}
+      const get=(key)=>{const m=t.match(new RegExp(`${key}:(.+)`));return m?m[1].trim():null;};
+      const getAll=(key)=>t.match(new RegExp(`${key}:(.+)`,"g"))?.map(l=>l.replace(`${key}:`,"").trim())||[];
+      const r={
+        score_tendance:get("SCORE_TENDANCE")||"7/10",
+        momentum:get("MOMENTUM")||"Stable",
+        fourchette_prix:get("FOURCHETTE_PRIX")||"?",
+        prix_ideal:get("PRIX_IDEAL")||"?",
+        vitesse_vente:get("VITESSE_VENTE")||"?",
+        potentiel_revente:get("POTENTIEL_REVENTE")||"?",
+        public_cible:get("PUBLIC_CIBLE")||"?",
+        etat_optimal:get("ETAT_OPTIMAL")||"?",
+        marques_top:getAll("MARQUE_TOP"),
+        mots_cles:getAll("MOT_CLE"),
+        conseil:get("CONSEIL")||"",
+        astuce_photo:get("ASTUCE_PHOTO")||""
+      };
+      if(r.score_tendance){setResult(r);}
       else{setError("Réponse invalide. Réessaie !");}
     }catch(e){
-      console.error("analyse error:",e);
+      console.error(e);
       setError("Analyse échouée. Vérifie ta connexion.");
     }finally{setLoading(false);}
   };
@@ -494,17 +522,33 @@ Reponds UNIQUEMENT avec cet objet JSON, sans markdown, sans backticks, sans text
   const analyseScore=async()=>{
     if(!scoreA.desc.trim())return;
     setScoreA(p=>({...p,loading:true,result:null}));
-    const prompt=`Tu es expert Vinted. Note cette annonce.
-Titre: "${scoreA.titre}"
+    const prompt=`Tu es expert Vinted. Évalue cette annonce et réponds avec EXACTEMENT ce format (remplace les valeurs entre crochets):
+SCORE_GLOBAL:[note sur 10]/10
+SCORE_TITRE:[note sur 10]/10
+SCORE_DESC:[note sur 10]/10
+SCORE_PRIX:[note sur 10]/10
+POINT_FORT:premier point fort
+POINT_FORT:deuxième point fort
+POINT_FAIBLE:premier point faible
+POINT_FAIBLE:deuxième point faible
+TITRE_AMELIORE:[nouveau titre optimisé]
+
+Annonce à évaluer:
+Titre: "${scoreA.titre||"(sans titre)"}"
 Description: "${scoreA.desc}"
-Prix: ${scoreA.prix||"?"}€
-Reponds UNIQUEMENT avec cet objet JSON sans markdown:
-{"score_global":"7/10","scores":{"titre":"6/10","description":"8/10","prix":"7/10"},"points_forts":["point 1","point 2"],"points_faibles":["point 1","point 2"],"titre_ameliore":"Nouveau titre optimisé","hashtags_manquants":["#tag1","#tag2"]}`;
+Prix: ${scoreA.prix||"?"}€`;
     try{
       const t=await callClaude(prompt);
-      const r=parseRobuste(t);
-      if(r)setScoreA(p=>({...p,loading:false,result:r}));
-      else setScoreA(p=>({...p,loading:false}));
+      const get=(key)=>{const m=t.match(new RegExp(`${key}:(.+)`));return m?m[1].trim():null;};
+      const getAll=(key)=>t.match(new RegExp(`${key}:(.+)`,"g"))?.map(l=>l.replace(`${key}:`,"").trim())||[];
+      const r={
+        score_global:get("SCORE_GLOBAL")||"7/10",
+        scores:{titre:get("SCORE_TITRE")||"?",description:get("SCORE_DESC")||"?",prix:get("SCORE_PRIX")||"?"},
+        points_forts:getAll("POINT_FORT"),
+        points_faibles:getAll("POINT_FAIBLE"),
+        titre_ameliore:get("TITRE_AMELIORE")||""
+      };
+      setScoreA(p=>({...p,loading:false,result:r}));
     }catch{setScoreA(p=>({...p,loading:false}));}
   };
 
