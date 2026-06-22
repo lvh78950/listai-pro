@@ -41,7 +41,7 @@ const db = {
   async addVente(uid,v,tok){return supa.insert("ventes",{user_id:uid,article:v.article,prix_vente:v.prix_vente||"",prix_achat:v.prix_achat||"",plateforme:v.plateforme||"Vinted",date:v.date||""},tok);},
   async delVente(uid,id,tok){return supa.delete("ventes",id,tok);},
   async getPrefs(uid,tok){const d=await supa.select("preferences",{user_id:uid},tok);return Array.isArray(d)&&d.length>0?d[0]:null;},
-  
+  async savePrefs(uid,p,tok){return supa.upsert("preferences",{user_id:uid,...p,updated_at:new Date().toISOString()},"user_id",tok);},
   async migrate(uid,tok){try{let count=0;const lsL=JSON.parse(localStorage.getItem("vh2")||"[]");const lsS=JSON.parse(localStorage.getItem("listai_stock")||"[]");const lsV=JSON.parse(localStorage.getItem("listai_ventes")||"[]");for(const e of lsL.slice(0,50)){await supa.insert("listings",{user_id:uid,date:e.date,result:e.result},tok);count++;}for(const s of lsS){await supa.insert("stock",{user_id:uid,titre:s.titre,marque:s.marque||"",taille:s.taille||"",prix:s.prix||"",plateforme:s.plateforme||"Vinted",etat:s.etat||"",notes:s.notes||"",statut:s.statut||"en_vente",date_ajout:s.dateAjout||""},tok);count++;}for(const v of lsV){await supa.insert("ventes",{user_id:uid,article:v.article,prix_vente:v.prix_vente||"",prix_achat:v.prix_achat||"",plateforme:v.plateforme||"Vinted",date:v.date||""},tok);count++;}if(lsL.length)localStorage.removeItem("vh2");if(lsS.length)localStorage.removeItem("listai_stock");if(lsV.length)localStorage.removeItem("listai_ventes");return count;}catch{return 0;}}
 };
 
@@ -447,22 +447,79 @@ function TabTendances({dark}){
   const SUGG=["Veste en cuir","Nike Air Force","Sac Longchamp","Pull Ralph Lauren","Jean Levi's","Jordan 1","Blazer oversize"];
   const CAL=[{jour:"Lundi",score:6,heure:"18h-20h"},{jour:"Mardi",score:7,heure:"19h-21h"},{jour:"Mercredi",score:8,heure:"17h-20h"},{jour:"Jeudi",score:9,heure:"19h-22h"},{jour:"Vendredi",score:10,heure:"18h-22h"},{jour:"Samedi",score:8,heure:"10h-12h"},{jour:"Dimanche",score:7,heure:"20h-22h"}];
 
+  // Parse robuste : gère markdown, backticks, JSON mal formaté
+  const parseRobuste=(text)=>{
+    if(!text)return null;
+    // Étape 1 : nettoie markdown
+    let t=text.replace(/```json/gi,"").replace(/```/g,"").trim();
+    // Étape 2 : extrait entre { }
+    const s=t.indexOf("{");const e=t.lastIndexOf("}");
+    if(s!==-1&&e>s)t=t.slice(s,e+1);
+    // Étape 3 : parse direct
+    try{return JSON.parse(t);}catch{}
+    // Étape 4 : corrige les retours à la ligne dans les strings
+    try{
+      const fixed=t.replace(/:\s*"([\s\S]*?)"/g,(_,v)=>{
+        return `:"${v.replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/\r/g,"").replace(/"/g,'\\"')}"`;
+      });
+      return JSON.parse(fixed);
+    }catch{}
+    // Étape 5 : extraction manuelle des champs clés
+    try{
+      const get=(key)=>{const m=t.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`))||t.match(new RegExp(`"${key}"\\s*:\\s*([^,}]+)`));return m?m[1].trim().replace(/^"|"$/g,""):null;};
+      const getArr=(key)=>{const m=t.match(new RegExp(`"${key}"\\s*:\\s*\\[([^\\]]*?)\\]`));if(!m)return[];return m[1].match(/"([^"]*)"/g)?.map(s=>s.replace(/"/g,""))||[];};
+      return {score_tendance:get("score_tendance")||"7/10",momentum:get("momentum")||"Stable",fourchette_prix:get("fourchette_prix")||"?",prix_ideal:get("prix_ideal")||"?",vitesse_vente:get("vitesse_vente")||"?",marques_top:getArr("marques_top"),mots_cles:getArr("mots_cles"),conseil:get("conseil")||"",potentiel_revente:get("potentiel_revente")||"?",public_cible:get("public_cible")||"?",astuce_photo:get("astuce_photo")||""};
+    }catch{}
+    return null;
+  };
+
   const analyse=async q=>{
-    const s=q||query;if(!s.trim())return;setLoading(true);setResult(null);setError(null);
-    const p=`Expert revendeur Vinted. Analyse "${s}". UNIQUEMENT JSON: {"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"conseil","potentiel_revente":"Élevé","temps_vente_moyen":"5-7 jours","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"conseil photo"}`;
-    try{const t=await callClaude(p);const r=pj(t);if(!r)throw new Error();setResult(r);}catch(e){console.error(e);setError("Analyse échouée. Vérifie ta connexion.");}finally{setLoading(false);}
+    const s=q||query;
+    if(!s.trim())return;
+    setLoading(true);setResult(null);setError(null);
+    const prompt=`Tu es expert revendeur Vinted. Analyse le marché pour "${s}".
+Reponds UNIQUEMENT avec cet objet JSON, sans markdown, sans backticks, sans texte avant ou apres:
+{"score_tendance":"8/10","momentum":"En hausse","fourchette_prix":"20-45€","prix_ideal":"32€","vitesse_vente":"3-5 jours","marques_top":["Nike","Adidas"],"mots_cles":["vintage","streetwear"],"conseil":"un conseil court","potentiel_revente":"Élevé","public_cible":"Hommes 18-30","etat_optimal":"Très bon état","astuce_photo":"un conseil photo court"}`;
+    try{
+      const t=await callClaude(prompt);
+      const r=parseRobuste(t);
+      if(r&&r.score_tendance){setResult(r);}
+      else{setError("Réponse invalide. Réessaie !");}
+    }catch(e){
+      console.error("analyse error:",e);
+      setError("Analyse échouée. Vérifie ta connexion.");
+    }finally{setLoading(false);}
   };
 
   const analyseScore=async()=>{
-    if(!scoreA.desc.trim())return;setScoreA(p=>({...p,loading:true,result:null}));
-    const p=`Expert Vinted. Note cette annonce. Titre: "${scoreA.titre}", Desc: "${scoreA.desc}", Prix: ${scoreA.prix||"?"}€. UNIQUEMENT JSON: {"score_global":"7/10","scores":{"titre":"6/10","description":"8/10","prix":"7/10"},"points_forts":["p1","p2"],"points_faibles":["p1","p2"],"titre_ameliore":"Nouveau titre","hashtags_manquants":["#tag1","#tag2"]}`;
-    try{const t=await callClaude(p);const r=pj(t);if(r)setScoreA(p=>({...p,loading:false,result:r}));}catch{setScoreA(p=>({...p,loading:false}));}
+    if(!scoreA.desc.trim())return;
+    setScoreA(p=>({...p,loading:true,result:null}));
+    const prompt=`Tu es expert Vinted. Note cette annonce.
+Titre: "${scoreA.titre}"
+Description: "${scoreA.desc}"
+Prix: ${scoreA.prix||"?"}€
+Reponds UNIQUEMENT avec cet objet JSON sans markdown:
+{"score_global":"7/10","scores":{"titre":"6/10","description":"8/10","prix":"7/10"},"points_forts":["point 1","point 2"],"points_faibles":["point 1","point 2"],"titre_ameliore":"Nouveau titre optimisé","hashtags_manquants":["#tag1","#tag2"]}`;
+    try{
+      const t=await callClaude(prompt);
+      const r=parseRobuste(t);
+      if(r)setScoreA(p=>({...p,loading:false,result:r}));
+      else setScoreA(p=>({...p,loading:false}));
+    }catch{setScoreA(p=>({...p,loading:false}));}
   };
 
   const analyseConcurrence=async()=>{
-    if(!concuQ.trim())return;setConcuL(true);setConcuR(null);
-    const p=`Expert Vinted. Concurrence pour "${concuQ}". UNIQUEMENT JSON: {"nb_annonces_estim":"150-200","prix_moyen":"28€","prix_min":"8€","prix_max":"65€","etat_dominant":"Très bon état","points_differenciants":["av1","av2","av3"],"conseil_positionnement":"conseil","meilleur_moment":"Jeudi-vendredi 19h"}`;
-    try{const t=await callClaude(p);const r=pj(t);if(r)setConcuR(r);}catch{}finally{setConcuL(false);}
+    if(!concuQ.trim())return;
+    setConcuL(true);setConcuR(null);
+    const prompt=`Tu es expert Vinted. Analyse la concurrence pour "${concuQ}".
+Reponds UNIQUEMENT avec cet objet JSON sans markdown:
+{"nb_annonces_estim":"150-200","prix_moyen":"28€","prix_min":"8€","prix_max":"65€","etat_dominant":"Très bon état","points_differenciants":["avantage 1","avantage 2","avantage 3"],"conseil_positionnement":"un conseil concret","meilleur_moment":"Jeudi-vendredi 19h"}`;
+    try{
+      const t=await callClaude(prompt);
+      const r=parseRobuste(t);
+      if(r)setConcuR(r);
+    }catch{}
+    finally{setConcuL(false);}
   };
 
   const sC=s=>s>=9?"#34c759":s>=7?"#ff9500":"#6e6e73";
@@ -1312,7 +1369,7 @@ export default function App(){
 
   const loadUserData=async sess=>{
     setSession(sess);
-   
+    try{const prefs=await db.getPrefs(sess.user.id,sess.access_token);if(prefs&&prefs.dark!==undefined){/* theme handled by localStorage */}}catch{}
     const migKey=`listai_migrated_${sess.user.id}`;
     if(!localStorage.getItem(migKey)){
       const count=await db.migrate(sess.user.id,sess.access_token);
