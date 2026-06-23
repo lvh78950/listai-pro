@@ -12,7 +12,7 @@ const SHIP = [{l:"Lettre suivie",p:2.99},{l:"Colissimo S",p:3.99},{l:"Colissimo 
 const ETAT = ["Neuf avec étiquette","Neuf sans étiquette","Très bon état","Bon état","Satisfaisant"];
 const ETAT_C = ["#34c759","#30d158","#007aff","#ff9500","#ff3b30"];
 const PLATFORMS = ["Vinted","Leboncoin","eBay","Depop","Vestiaire"];
-const TABS = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"pricing",icon:"💎",label:"Plans"}];
+const TABS = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"outils",icon:"🛠️",label:"Outils"},{id:"pricing",icon:"💎",label:"Plans"}];
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const supa = {
@@ -1884,6 +1884,349 @@ function LockedFeature({dark,feature,plan,onUpgrade}){
   </div>;
 }
 
+
+// ── I18N ──────────────────────────────────────────────────────────────────────
+const I18N = {
+  fr: {
+    app_tagline: "Transforme tes photos en annonces parfaites",
+    bonjour: "Bonjour 👋",
+    new_listing: "Nouvelle annonce",
+    my_store: "🛍️ Ma vitrine",
+    empty_store: "Ta vitrine est vide",
+    empty_store_sub: "Ajoute tes articles en vente avec leurs photos !",
+    generate: "Générer une annonce",
+    generate_sub: "Photos → Annonce IA en 10s",
+    stock: "Mon Stock",
+    history: "Historique",
+    plans: "Abonnements",
+    sign_out: "Déco.",
+    en_vente: "En vente",
+    vendu: "Vendu",
+    reserve: "Réservé",
+    republish_alert: "⏰ Articles à republier",
+    republish_sub: "Ces articles n'ont pas bougé depuis 7+ jours",
+    republish_btn: "Copier l'annonce",
+    offer_title: "🤝 Répondre à une offre",
+    offer_placeholder: "Ex: Article à 50€, offre reçue: 35€",
+    offer_btn: "Générer la réponse",
+    alert_title: "🔔 Alertes prix",
+    alert_placeholder: "Ex: Nike Air Max 90 T42 blanc",
+    alert_btn: "Surveiller",
+    analysis_title: "📊 Analyse de mes ventes",
+  },
+  en: {
+    app_tagline: "Turn your photos into perfect listings",
+    bonjour: "Hello 👋",
+    new_listing: "New listing",
+    my_store: "🛍️ My store",
+    empty_store: "Your store is empty",
+    empty_store_sub: "Add your items for sale with photos!",
+    generate: "Generate a listing",
+    generate_sub: "Photos → AI listing in 10s",
+    stock: "My Stock",
+    history: "History",
+    plans: "Plans",
+    sign_out: "Sign out",
+    en_vente: "For sale",
+    vendu: "Sold",
+    reserve: "Reserved",
+    republish_alert: "⏰ Items to republish",
+    republish_sub: "These items haven't moved in 7+ days",
+    republish_btn: "Copy listing",
+    offer_title: "🤝 Reply to an offer",
+    offer_placeholder: "Ex: Item at €50, offer received: €35",
+    offer_btn: "Generate reply",
+    alert_title: "🔔 Price alerts",
+    alert_placeholder: "Ex: Nike Air Max 90 T42 white",
+    alert_btn: "Monitor",
+    analysis_title: "📊 My sales analysis",
+  }
+};
+
+
+// ── TAB OUTILS ────────────────────────────────────────────────────────────────
+function TabOutils({dark,stock,history,ventes,userPlan,setShowPricingModal,lang}){
+  const t=I18N[lang||"fr"];
+  const [subTab,setSubTab]=useState("republier");
+  const [offerInput,setOfferInput]=useState("");
+  const [offerResult,setOfferResult]=useState("");
+  const [offerLoading,setOfferLoading]=useState(false);
+  const [alertQuery,setAlertQuery]=useState("");
+  const [alertResult,setAlertResult]=useState(null);
+  const [alertLoading,setAlertLoading]=useState(false);
+  const [alerts,setAlerts]=useState(()=>{try{return JSON.parse(localStorage.getItem("listai_alerts")||"[]");}catch{return [];}});
+  const [copied,setCopied]=useState(null);
+
+  // ── Republication ────────────────────────────────────────────────────────────
+  const now=new Date();
+  const oldItems=stock.filter(s=>{
+    if(s.statut!=="en_vente") return false;
+    if(!s.dateAjout) return false;
+    const parts=s.dateAjout.split("/");
+    if(parts.length<3) return false;
+    const d=new Date(parts[2],parts[1]-1,parts[0]);
+    return (now-d)/(1000*60*60*24)>=7;
+  });
+
+  const copyListing=(art)=>{
+    const h=history.find(x=>x.result?.titre===art.titre||x.result?.marque===art.marque);
+    const text=h?`${h.result.titre}
+
+${h.result.description}
+
+${h.result.hashtags||""}`
+      :`${art.titre}
+État: ${art.etat}
+Taille: ${art.taille}
+Prix: ${art.prix}€`;
+    navigator.clipboard.writeText(text);
+    setCopied(art.id);
+    setTimeout(()=>setCopied(null),2000);
+  };
+
+  // ── Réponse aux offres ────────────────────────────────────────────────────────
+  const handleOffer=async()=>{
+    if(!offerInput.trim()) return;
+    setOfferLoading(true);setOfferResult("");
+    const prompt=`Tu es un expert vendeur Vinted. Situation: ${offerInput}. Génère 3 réponses différentes (ferme mais sympa, négociation, acceptation partielle). JSON uniquement: {"responses":[{"tone":"Ferme","text":"..."},{"tone":"Négociation","text":"..."},{"tone":"Accommodant","text":"..."}]}`;
+    try{
+      const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,messages:[{role:"user",content:prompt}]})});
+      const data=await res.json();
+      const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const clean=txt.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+      const s=clean.indexOf("{"),e=clean.lastIndexOf("}");
+      if(s>-1){const r=JSON.parse(clean.slice(s,e+1));setOfferResult(r);}
+    }catch(err){console.error(err);}
+    setOfferLoading(false);
+  };
+
+  // ── Alertes prix ──────────────────────────────────────────────────────────────
+  const handleAlert=async()=>{
+    if(!alertQuery.trim()) return;
+    setAlertLoading(true);setAlertResult(null);
+    const prompt=`Tu es expert revendeur. Analyse le marché Vinted pour "${alertQuery}". Réponds en JSON: {"article":"${alertQuery}","prix_min":XX,"prix_max":XX,"prix_moyen":XX,"tendance":"hausse|baisse|stable","conseil":"conseil en 1 phrase","prix_ideal":XX}`;
+    try{
+      const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:prompt}]})});
+      const data=await res.json();
+      const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const clean=txt.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+      const s=clean.indexOf("{"),e=clean.lastIndexOf("}");
+      if(s>-1){
+        const r=JSON.parse(clean.slice(s,e+1));
+        setAlertResult(r);
+        const newAlerts=[...alerts.filter(a=>a.article!==r.article),{...r,addedAt:new Date().toLocaleDateString("fr-FR")}];
+        setAlerts(newAlerts);
+        localStorage.setItem("listai_alerts",JSON.stringify(newAlerts));
+        setAlertQuery("");
+      }
+    }catch(err){console.error(err);}
+    setAlertLoading(false);
+  };
+
+  // ── Analyse ventes ────────────────────────────────────────────────────────────
+  const totalCA=stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
+  const vendus=stock.filter(s=>s.statut==="vendu");
+  const enVente=stock.filter(s=>s.statut==="en_vente");
+  const prixMoyen=vendus.length>0?(totalCA/vendus.length).toFixed(0):0;
+  const meilleureVente=vendus.sort((a,b)=>(parseFloat(b.prix)||0)-(parseFloat(a.prix)||0))[0];
+  const marques=[...new Set(vendus.map(v=>v.marque).filter(Boolean))];
+  const marqueTop=marques.reduce((acc,m)=>{
+    const n=vendus.filter(v=>v.marque===m).length;
+    return n>(acc.count||0)?{marque:m,count:n}:acc;
+  },{});
+  const tauxVente=stock.length>0?Math.round((vendus.length/stock.length)*100):0;
+
+  return <div>
+    <Title dark={dark} sub="Outils pour maximiser tes ventes">🛠️ Outils Pro</Title>
+
+    <div style={{display:"flex",gap:6,marginBottom:16,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none"}}>
+      {[
+        ["republier","⏰ Republier"],
+        ["offres","🤝 Offres"],
+        ["alertes","🔔 Alertes prix"],
+        ["analyse","📊 Analyse"],
+      ].map(([k,l])=>(
+        <button key={k} onClick={()=>setSubTab(k)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${subTab===k?GOLD:T.border(dark)}`,background:subTab===k?`${GOLD}15`:"transparent",color:subTab===k?GOLD:T.text2(dark),fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{l}</button>
+      ))}
+    </div>
+
+    {/* ── REPUBLIER ── */}
+    {subTab==="republier"&&<div>
+      <Card dark={dark} style={{borderLeft:`3px solid #ff9500`,marginBottom:12}}>
+        <Label dark={dark} style={{color:"#ff9500"}}>💡 Comment ça marche</Label>
+        <p style={{margin:0,fontSize:12,color:T.text(dark),lineHeight:1.6}}>Les articles en vente depuis 7+ jours sans vente méritent d'être republié. Copie l'annonce et republie-la sur Vinted pour remonter dans les résultats.</p>
+      </Card>
+      {oldItems.length===0
+        ?<Card dark={dark}><div style={{textAlign:"center",padding:"20px 0"}}>
+            <div style={{fontSize:32,marginBottom:8}}>✅</div>
+            <div style={{fontSize:14,fontWeight:700,color:T.text(dark)}}>Tout est frais !</div>
+            <div style={{fontSize:12,color:T.text2(dark),marginTop:4}}>Aucun article en vente depuis plus de 7 jours</div>
+          </div></Card>
+        :<div>
+          <div style={{fontSize:12,color:"#ff9500",fontWeight:700,marginBottom:10}}>⚠️ {oldItems.length} article(s) à republier</div>
+          {oldItems.map(art=>(
+            <Card key={art.id} dark={dark} style={{marginBottom:8}}>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                {art.photo&&<img src={art.photo} alt="" style={{width:48,height:48,borderRadius:10,objectFit:"cover",flexShrink:0}}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text(dark),overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{art.titre}</div>
+                  <div style={{fontSize:10,color:T.text2(dark)}}>{art.prix}€ · En vente depuis {art.dateAjout}</div>
+                </div>
+                <button onClick={()=>copyListing(art)} style={{padding:"6px 12px",borderRadius:10,border:"none",background:copied===art.id?"#34c759":GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0}}>
+                  {copied===art.id?"✓ Copié !":"📋 Copier"}
+                </button>
+              </div>
+            </Card>
+          ))}
+          <Card dark={dark} style={{borderLeft:`3px solid ${GOLD}`}}>
+            <div style={{fontSize:11,color:T.text2(dark),lineHeight:1.6}}>
+              💡 <strong style={{color:T.text(dark)}}>Astuce :</strong> Baisse le prix de 10% avant de republier → Vinted notifie automatiquement tous tes favoris !
+            </div>
+          </Card>
+        </div>
+      }
+    </div>}
+
+    {/* ── OFFRES ── */}
+    {subTab==="offres"&&<div>
+      <Card dark={dark} style={{borderLeft:`3px solid #34c759`,marginBottom:12}}>
+        <Label dark={dark}>💡 Comment ça marche</Label>
+        <p style={{margin:0,fontSize:12,color:T.text(dark),lineHeight:1.6}}>Décris la situation (ton prix + l'offre reçue) → l'IA génère 3 réponses adaptées selon ta stratégie.</p>
+      </Card>
+      <Card dark={dark}>
+        <Label dark={dark}>Décris la situation</Label>
+        <Txta value={offerInput} onChange={e=>setOfferInput(e.target.value)}
+          placeholder="Ex: Je vends une veste à 60€, quelqu'un m'offre 35€. L'article est en très bon état, Nike, taille M."
+          dark={dark} rows={3}/>
+        <div style={{marginTop:10}}>
+          <Btn onClick={handleOffer} disabled={offerLoading||!offerInput.trim()} full>
+            {offerLoading?<><Spin/> Génération...</>:"🤝 Générer les réponses"}
+          </Btn>
+        </div>
+      </Card>
+      {offerResult?.responses&&<div style={{marginTop:12}}>
+        {offerResult.responses.map((r,i)=>(
+          <Card key={i} dark={dark} style={{marginBottom:8,borderLeft:`3px solid ${["#7C3AED","#ff9500","#34c759"][i]}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:800,color:["#7C3AED","#ff9500","#34c759"][i]}}>{r.tone}</span>
+              <button onClick={()=>{navigator.clipboard.writeText(r.text);setCopied("offer"+i);setTimeout(()=>setCopied(null),2000);}}
+                style={{padding:"3px 10px",borderRadius:20,border:`1px solid ${T.border(dark)}`,background:copied==="offer"+i?"#34c759":T.card2(dark),color:copied==="offer"+i?"white":T.text2(dark),fontSize:10,fontWeight:700,cursor:"pointer"}}>
+                {copied==="offer"+i?"✓":"Copier"}
+              </button>
+            </div>
+            <p style={{margin:0,fontSize:12,color:T.text(dark),lineHeight:1.6}}>{r.text}</p>
+          </Card>
+        ))}
+      </div>}
+    </div>}
+
+    {/* ── ALERTES PRIX ── */}
+    {subTab==="alertes"&&<div>
+      <Card dark={dark} style={{borderLeft:`3px solid #ff3b30`,marginBottom:12}}>
+        <Label dark={dark}>💡 Surveille le marché</Label>
+        <p style={{margin:0,fontSize:12,color:T.text(dark),lineHeight:1.6}}>Entre un article à surveiller → l'IA analyse le marché Vinted et te donne le prix idéal, la tendance et un conseil.</p>
+      </Card>
+      <Card dark={dark}>
+        <Label dark={dark}>Article à surveiller</Label>
+        <Inp value={alertQuery} onChange={e=>setAlertQuery(e.target.value)}
+          placeholder="Ex: Nike Air Max 95 Taille 42" dark={dark}/>
+        <div style={{marginTop:10}}>
+          <Btn onClick={handleAlert} disabled={alertLoading||!alertQuery.trim()} full>
+            {alertLoading?<><Spin/> Analyse du marché...</>:"🔔 Analyser le marché"}
+          </Btn>
+        </div>
+      </Card>
+      {alertResult&&<Card dark={dark} style={{marginTop:12,borderLeft:`3px solid #ff3b30`}}>
+        <div style={{fontSize:14,fontWeight:800,color:T.text(dark),marginBottom:10}}>{alertResult.article}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          {[["Prix min",`${alertResult.prix_min}€`,"#34c759"],["Prix max",`${alertResult.prix_max}€`,"#ff3b30"],["Prix moyen",`${alertResult.prix_moyen}€`,"#007aff"],["Prix idéal",`${alertResult.prix_ideal}€`,GOLD]].map(([l,v,c])=>(
+            <div key={l} style={{background:T.card2(dark),borderRadius:10,padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginBottom:3}}>{l}</div>
+              <div style={{fontSize:18,fontWeight:900,color:c}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"8px 12px",borderRadius:10,background:alertResult.tendance==="hausse"?"#34c75910":alertResult.tendance==="baisse"?"#ff3b3010":"#ff950010"}}>
+          <span style={{fontSize:18}}>{alertResult.tendance==="hausse"?"📈":alertResult.tendance==="baisse"?"📉":"➡️"}</span>
+          <span style={{fontSize:12,fontWeight:700,color:alertResult.tendance==="hausse"?"#34c759":alertResult.tendance==="baisse"?"#ff3b30":"#ff9500"}}>Tendance : {alertResult.tendance}</span>
+        </div>
+        <div style={{fontSize:12,color:T.text2(dark),lineHeight:1.6}}>💡 {alertResult.conseil}</div>
+      </Card>}
+      {alerts.length>0&&<div style={{marginTop:12}}>
+        <Label dark={dark}>Mes surveillances ({alerts.length})</Label>
+        {alerts.map((a,i)=>(
+          <Card key={i} dark={dark} style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.text(dark)}}>{a.article}</div>
+              <div style={{fontSize:10,color:T.text2(dark)}}>Idéal: {a.prix_ideal}€ · {a.tendance==="hausse"?"📈":"📉"} {a.tendance} · {a.addedAt}</div>
+            </div>
+            <button onClick={()=>{const n=alerts.filter((_,j)=>j!==i);setAlerts(n);localStorage.setItem("listai_alerts",JSON.stringify(n));}}
+              style={{padding:"4px 8px",borderRadius:8,border:"1px solid #ff3b3040",background:"#ff3b3010",color:"#ff3b30",fontSize:11,cursor:"pointer"}}>✕</button>
+          </Card>
+        ))}
+      </div>}
+    </div>}
+
+    {/* ── ANALYSE VENTES ── */}
+    {subTab==="analyse"&&<div>
+      {vendus.length===0
+        ?<Card dark={dark}><div style={{textAlign:"center",padding:"20px 0"}}>
+            <div style={{fontSize:32,marginBottom:8}}>📊</div>
+            <div style={{fontSize:14,fontWeight:700,color:T.text(dark)}}>Pas encore de ventes</div>
+            <div style={{fontSize:12,color:T.text2(dark),marginTop:4}}>Marque tes articles comme "Vendus" pour voir l'analyse</div>
+          </div></Card>
+        :<div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            {[
+              ["💰","CA Total",`${totalCA.toFixed(0)}€`,GOLD],
+              ["📦","Articles vendus",vendus.length,"#34c759"],
+              ["📈","Prix moyen",`${prixMoyen}€`,"#007aff"],
+              ["🎯","Taux de vente",`${tauxVente}%`,"#ff9500"],
+            ].map(([icon,label,value,color])=>(
+              <div key={label} style={{background:T.card(dark),border:`1px solid ${T.border(dark)}`,borderRadius:16,padding:"14px 12px"}}>
+                <div style={{fontSize:22,marginBottom:4}}>{icon}</div>
+                <div style={{fontSize:20,fontWeight:900,color}}>{value}</div>
+                <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>{label}</div>
+              </div>
+            ))}
+          </div>
+          {meilleureVente&&<Card dark={dark} style={{marginBottom:8,borderLeft:`3px solid ${GOLD}`}}>
+            <Label dark={dark}>🏆 Meilleure vente</Label>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              {meilleureVente.photo&&<img src={meilleureVente.photo} alt="" style={{width:48,height:48,borderRadius:10,objectFit:"cover"}}/>}
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:T.text(dark)}}>{meilleureVente.titre}</div>
+                <div style={{fontSize:15,fontWeight:900,color:GOLD,marginTop:2}}>{meilleureVente.prix}€</div>
+              </div>
+            </div>
+          </Card>}
+          {marqueTop.marque&&<Card dark={dark} style={{marginBottom:8,borderLeft:"3px solid #007aff"}}>
+            <Label dark={dark}>⭐ Marque qui se vend le mieux</Label>
+            <div style={{fontSize:18,fontWeight:900,color:"#007aff"}}>{marqueTop.marque}</div>
+            <div style={{fontSize:12,color:T.text2(dark),marginTop:4}}>{marqueTop.count} article(s) vendu(s)</div>
+          </Card>}
+          <Card dark={dark} style={{borderLeft:`3px solid #34c759`}}>
+            <Label dark={dark}>💡 Conseils personnalisés</Label>
+            {[
+              tauxVente<30?"Ton taux de vente est faible — essaie de baisser les prix de 15%":null,
+              parseFloat(prixMoyen)<20?"Tes prix sont bas — tu pourrais vendre plus cher certains articles":null,
+              enVente.length>vendus.length*2?"Tu as beaucoup d'articles en attente — pense à republier les plus anciens":null,
+              vendus.length>=5?"Super ! Tu vends bien — continue à alimenter ton stock régulièrement":null,
+            ].filter(Boolean).map((conseil,i)=>(
+              <div key={i} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
+                <span style={{color:"#34c759",flexShrink:0}}>→</span>
+                <span style={{fontSize:12,color:T.text2(dark),lineHeight:1.5}}>{conseil}</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+      }
+    </div>}
+  </div>;
+}
+
 // ── LIMIT CHECKER ─────────────────────────────────────────────────────────────
 function useLimitCheck(userPlan, history, stock){
   const limits=LIMITS[userPlan]||LIMITS.free;
@@ -2055,7 +2398,9 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [tab,setTab]=useState("annonce");
   const [history,setHistory]=useState([]);
-  const [userPlan,setUserPlan]=useState("free"); // "free" | "pro" | "expert"
+  const [userPlan,setUserPlan]=useState("free");
+  const [lang,setLang]=useState(()=>localStorage.getItem("listai_lang")||"fr");
+  const toggleLang=()=>{const nl=lang==="fr"?"en":"fr";setLang(nl);localStorage.setItem("listai_lang",nl);};
   // Plans loaded from DB (user_plans table)
   const OWNER_EMAILS=[]; // Legacy - now using DB
   const [showPricingModal,setShowPricingModal]=useState(false);
@@ -2154,6 +2499,7 @@ export default function App(){
       :<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
+    outils:<TabOutils dark={dark} stock={stock} history={history} ventes={ventes} userPlan={userPlan} setShowPricingModal={setShowPricingModal} lang={lang}/>,
     pdf:LIMITS[userPlan||"free"].pdf?<TabPDF dark={dark}/>:<LockedFeature dark={dark} feature="PDF Templates" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>,
     pricing:<TabPricing dark={dark} userPlan={userPlan}/>,
   };
@@ -2170,6 +2516,7 @@ export default function App(){
     {id:"reopt",icon:"🔄",label:"Ré-optimiseur",sub:"Relance une annonce qui stagne",grad:"linear-gradient(135deg,#F59E0B,#FF6B2B)",shadow:"rgba(245,158,11,0.4)"},
     {id:"ventes",icon:"📊",label:"Suivi des ventes",sub:`CA: ${ventes.reduce((s,v)=>s+(parseFloat(v.prix_vente)||0),0).toFixed(0)}€`,grad:"linear-gradient(135deg,#10B981,#059669)",shadow:"rgba(16,185,129,0.4)"},
     {id:"historique",icon:"🕓",label:"Historique",sub:`${history.length} annonce(s) générée(s)`,grad:"linear-gradient(135deg,#6366F1,#7C3AED)",shadow:"rgba(99,102,241,0.4)"},
+    {id:"outils",icon:"🛠️",label:"Outils Pro",sub:"Republier · Offres · Alertes · Analyse",grad:"linear-gradient(135deg,#059669,#10B981)",shadow:"rgba(5,150,105,0.4)"},
     {id:"pricing",icon:"💎",label:"Mes Abonnements",sub:"Gratuit · Pro · Expert",grad:"linear-gradient(135deg,#FF6B2B,#FF9500)",shadow:"rgba(255,107,43,0.4)"},
     {id:"pdf",icon:"📄",label:"Éditeur PDF",sub:"13 templates à télécharger",grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
     {id:"extension",icon:"🧩",label:"Extension Chrome",sub:"Installe & configure l'extension",grad:"linear-gradient(135deg,#FF6B2B,#7C3AED)",shadow:"rgba(124,58,237,0.4)"},
@@ -2191,6 +2538,7 @@ export default function App(){
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {!homeView&&<span style={{fontSize:10,color:T.text2(dark),maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span>}
+          <button onClick={toggleLang} title="Change language" style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:T.card2(dark),fontSize:11,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:T.text(dark)}}>{lang==="fr"?"🇬🇧":"🇫🇷"}</button>
           <button onClick={()=>setShowPricingModal(true)} title="Abonnements" style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${GOLD}60`,background:`${GOLD}15`,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>💎</button>
           <button onClick={()=>setShowTuto(true)} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>❓</button>
           <button onClick={handleToggleDark} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{dark?"☀️":"🌙"}</button>
