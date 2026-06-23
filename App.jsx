@@ -2103,9 +2103,9 @@ export default function App(){
     try{
       const [h,s,v]=await Promise.all([db.getListings(sess.user.id,sess.access_token),db.getStock(sess.user.id,sess.access_token),db.getVentes(sess.user.id,sess.access_token)]);
       setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result,photo:x.photo||""})));
-      // Load plan from DB
+      // Load plan from DB (use sess not s - s is stock array!)
       try{
-        const plan=await db.getUserPlan(s.user.id, s.access_token);
+        const plan=await db.getUserPlan(sess.user.id, sess.access_token);
         setUserPlan(plan||"free");
       }catch(e){
         console.error("Plan load error:",e);
