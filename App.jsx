@@ -295,7 +295,7 @@ function AuthScreen({onAuth,dark}){
 }
 
 // ── TAB ANNONCE ───────────────────────────────────────────────────────────────
-function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToShow}){
+function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToShow,userPlan,setShowPricingModal}){
   const [step,setStep]=useState(1);
   const [images,setImages]=useState([]);
   const [prix,setPrix]=useState("");
@@ -419,10 +419,23 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
 
       {error&&<div style={{background:"#fff2f2",border:"1px solid #ffd0d0",borderRadius:10,padding:12,marginBottom:12,color:"#ff3b30",fontSize:13}}>❌ {error}</div>}
 
-      <div style={{display:"flex",gap:10}}>
-        <Btn onClick={()=>setStep(1)} variant="ghost">← Retour</Btn>
-        <Btn onClick={generate} disabled={loading} full>{loading?"✦ Analyse en cours...":"✦ Générer l'annonce"}</Btn>
-      </div>
+      {(()=>{
+        const lim=LIMITS[userPlan||"free"];
+        const now=new Date();
+        const used=history.filter(h=>{try{const d=new Date(h.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}catch{return false;}}).length;
+        const canGen=used<lim.annonces;
+        return canGen
+          ?<div style={{display:"flex",gap:10}}>
+              <Btn onClick={()=>setStep(1)} variant="ghost">← Retour</Btn>
+              <Btn onClick={generate} disabled={loading} full>{loading?"✦ Analyse en cours...":"✦ Générer l'annonce"}</Btn>
+            </div>
+          :<div style={{borderRadius:14,background:"#ff3b3010",border:"1px solid #ff3b3040",padding:"16px",textAlign:"center"}}>
+              <div style={{fontSize:24,marginBottom:8}}>🚫</div>
+              <div style={{fontSize:14,fontWeight:800,color:"#ff3b30",marginBottom:4}}>Limite mensuelle atteinte</div>
+              <div style={{fontSize:12,color:T.text2(dark),marginBottom:12}}>{used}/{lim.annonces} annonces utilisées ce mois · Plan {PLANS[userPlan||"free"].name}</div>
+              <button onClick={()=>setShowPricingModal(true)} style={{padding:"10px 20px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:13,fontWeight:800,cursor:"pointer"}}>💎 Passer à l'offre supérieure</button>
+            </div>;
+      })()}
 
       {loading&&<Card dark={dark} style={{marginTop:12}}>
         {["🔍 Analyse des photos...","🏷️ Détection marque & taille...","✍️ Rédaction de l'annonce...","#️⃣ Génération des hashtags...","☁️ Sauvegarde cloud..."].map((tx,i)=>(
@@ -914,7 +927,7 @@ function TabAgent({dark,session,history,stock}){
 }
 
 // ── TAB STOCK ─────────────────────────────────────────────────────────────────
-function TabStock({dark,session,stock,setStock,history,openTab}){
+function TabStock({dark,session,stock,setStock,history,openTab,userPlan,setShowPricingModal}){
   const [form,setForm]=useState({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});
   const [showForm,setShowForm]=useState(false);
   const [filter,setFilter]=useState("tous");
@@ -1030,7 +1043,13 @@ ${hashtags}`.trim();
       {[["tous","Tous"],...statuts.map(s=>[s.k,s.l])].map(([k,l])=>(
         <button key={k} onClick={()=>setFilter(k)} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${filter===k?GOLD:T.border(dark)}`,background:filter===k?`${GOLD}15`:"transparent",color:filter===k?GOLD:T.text2(dark),fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
       ))}
-      <button onClick={()=>setShowForm(!showForm)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>+ Ajouter</button>
+      {(()=>{
+        const lim=LIMITS[userPlan||"free"];
+        const canAdd=stock.length<lim.stock;
+        return canAdd
+          ?<button onClick={()=>setShowForm(!showForm)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>+ Ajouter</button>
+          :<button onClick={()=>setShowPricingModal&&setShowPricingModal(true)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:"#ff3b30",color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>🚫 Limite ({lim.stock})</button>;
+      })()}
     </div>
 
     {/* ── Formulaire ajout ─────────────────────────────────────────────────── */}
@@ -1789,6 +1808,21 @@ const PAYMENT_LINKS = {
 
 
 
+
+// ── LOCKED FEATURE ────────────────────────────────────────────────────────────
+function LockedFeature({dark,feature,plan,onUpgrade}){
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:300,padding:32,textAlign:"center"}}>
+    <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+    <div style={{fontSize:18,fontWeight:900,color:T.text(dark),marginBottom:8}}>{feature}</div>
+    <div style={{fontSize:13,color:T.text2(dark),marginBottom:20,lineHeight:1.6}}>
+      Cette fonctionnalité est disponible à partir du plan <strong style={{color:GOLD}}>{plan}</strong>.
+    </div>
+    <button onClick={onUpgrade} style={{padding:"13px 28px",borderRadius:50,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer",boxShadow:`0 6px 20px ${GOLD}40`}}>
+      💎 Passer au plan {plan}
+    </button>
+  </div>;
+}
+
 // ── LIMIT CHECKER ─────────────────────────────────────────────────────────────
 function useLimitCheck(userPlan, history, stock){
   const limits=LIMITS[userPlan]||LIMITS.free;
@@ -1961,6 +1995,8 @@ export default function App(){
   const [tab,setTab]=useState("annonce");
   const [history,setHistory]=useState([]);
   const [userPlan,setUserPlan]=useState("free"); // "free" | "pro" | "expert"
+  // Owner emails with full Expert access (add yours here)
+  const OWNER_EMAILS=["lvh.78950@gmail.com"]; // ← TON EMAIL ICI
   const [showPricingModal,setShowPricingModal]=useState(false);
   const [stock,setStock]=useState([]);
   const [ventes,setVentes]=useState([]);
@@ -2004,6 +2040,9 @@ export default function App(){
     try{
       const [h,s,v]=await Promise.all([db.getListings(sess.user.id,sess.access_token),db.getStock(sess.user.id,sess.access_token),db.getVentes(sess.user.id,sess.access_token)]);
       setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result,photo:x.photo||""})));
+      // Set plan based on email (owners get Expert)
+      if(OWNER_EMAILS.includes(s.user.email)) setUserPlan("expert");
+      else setUserPlan("free"); // TODO: load from DB when real payments integrated
       // Show pricing modal on first login (once per session)
       const shownKey="listai_pricing_shown_"+s.user.id;
       if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
@@ -2030,17 +2069,17 @@ export default function App(){
   if(!session)return <AuthScreen onAuth={handleAuth} dark={dark}/>;
 
   const COMPONENTS={
-    annonce:<TabAnnonce dark={dark} session={session} history={history} setHistory={setHistory} resultToShow={resultToShow} setResultToShow={setResultToShow}/>,
+    annonce:<TabAnnonce dark={dark} session={session} history={history} setHistory={setHistory} resultToShow={resultToShow} setResultToShow={setResultToShow} userPlan={userPlan} setShowPricingModal={setShowPricingModal}/>,
     tendances:<TabTendances dark={dark}/>,
     marge:<TabMarge dark={dark}/>,
     agent:<TabAgent dark={dark} session={session} history={history} stock={stock}/>,
-    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}}/>,
+    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}} userPlan={userPlan} setShowPricingModal={setShowPricingModal}/>,
     reponses:<TabReponses dark={dark}/>,
     reopt:<TabReopt dark={dark}/>,
     ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
-    pdf:<TabPDF dark={dark}/>,
+    pdf:LIMITS[userPlan||"free"].pdf?<TabPDF dark={dark}/>:<LockedFeature dark={dark} feature="PDF Templates" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>,
     pricing:<TabPricing dark={dark} userPlan={userPlan}/>,
   };
 
