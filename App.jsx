@@ -1511,41 +1511,58 @@ function TabPDF({dark}){
   };
 
   // Analyze PDF with Claude - get fields WITH coordinates
+  const sanitizeForJSON=(str)=>{
+    if(typeof str!=="string") return str;
+    return str
+      .replace(/\r\n/g," ").replace(/\n/g," ").replace(/\r/g," ")
+      .replace(/\t/g," ").replace(/[\x00-\x1F\x7F]/g,"")
+      .replace(/"/g,"'").replace(/\\/g,"").trim();
+  };
+
+  const robustParseJSON=(raw)=>{
+    if(!raw) throw new Error("Empty response");
+    // Step 1: strip markdown
+    let t=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+    // Step 2: extract between first { and last }
+    const s=t.indexOf("{"),e=t.lastIndexOf("}");
+    if(s===-1||e===-1) throw new Error("No JSON object found");
+    t=t.slice(s,e+1);
+    // Step 3: try direct parse
+    try{return JSON.parse(t);}catch{}
+    // Step 4: sanitize control chars then parse
+    try{
+      const cleaned=t
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"")
+        .replace(/\n/g," ").replace(/\r/g," ").replace(/\t/g," ");
+      return JSON.parse(cleaned);
+    }catch{}
+    // Step 5: fix broken string values (newlines inside JSON strings)
+    try{
+      const fixed=t.replace(/:\s*"((?:[^"\\]|\\.)*)"/gs,(match,val)=>{
+        const safe=val.replace(/[\x00-\x1F\x7F]/g," ").replace(/\n/g," ").replace(/\r/g,"");
+        return ': "'+safe+'"';
+      });
+      return JSON.parse(fixed);
+    }catch(err){throw new Error("JSON parse failed: "+err.message);}
+  };
+
   const analyzeWithClaude=async(pdfBase64,mediaType="application/pdf")=>{
-    const prompt=`Analyse ce document PDF et extrait TOUS les champs texte modifiables.
-Pour chaque champ, donne sa POSITION approximative en pourcentage de la page (0-100).
-Réponds UNIQUEMENT en JSON valide:
-{
-  "brand": "nom marque",
-  "doc_type": "type document",
-  "fields": [
-    {
-      "id": "identifiant_unique",
-      "label": "Libellé du champ",
-      "value": "valeur actuelle",
-      "x": 10,
-      "y": 15,
-      "w": 30,
-      "h": 3,
-      "fontSize": 13
-    }
-  ]
-}
-x,y = position coin haut-gauche en % de la page. w,h = largeur/hauteur en %.
-fontSize en pixels (10-18 selon taille du texte dans le doc).
-Extrait TOUS les textes importants (noms, dates, montants, références, adresses, articles).`;
-    const body={model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:[
-      {type:"document",source:{type:"base64",media_type:mediaType,data:pdfBase64}},
-      {type:"text",text:prompt}
-    ]}]};
+    const prompt="Analyse ce PDF et extrait tous les champs texte modifiables avec leurs positions.\nReponds UNIQUEMENT en JSON sans markdown, sans backticks, sans saut de ligne dans les valeurs.\nFormat strict (valeurs sur une seule ligne, sans guillemets doubles dans les valeurs):\n{\"brand\":\"marque\",\"doc_type\":\"Facture\",\"fields\":[{\"id\":\"champ1\",\"label\":\"Libelle\",\"value\":\"valeur actuelle sur une ligne\",\"x\":10,\"y\":15,\"w\":35,\"h\":3,\"fontSize\":13}]}\nx,y=position % page haut-gauche. w,h=taille %. fontSize=10-18px.\nIMPORTANT: valeurs en UNE seule ligne, remplace les guillemets dans les valeurs par des apostrophes.";
+    // Send as image (jpeg from pdf.js render) - more reliable than PDF document type
+    const contentParts=mediaType.startsWith("image/")
+      ? [{type:"image",source:{type:"base64",media_type:mediaType,data:pdfBase64}},{type:"text",text:prompt}]
+      : [{type:"document",source:{type:"base64",media_type:mediaType,data:pdfBase64}},{type:"text",text:prompt}];
+    const body={model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:contentParts}]};
     const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(!res.ok) throw new Error("API error");
+    if(!res.ok){const err=await res.text();throw new Error("API "+res.status+": "+err.slice(0,100));}
     const data=await res.json();
-    const text=data.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
-    const clean=text.replace(/```json/gi,"").replace(/```/g,"").trim();
-    const s=clean.indexOf("{"),e=clean.lastIndexOf("}");
-    if(s===-1) throw new Error("No JSON");
-    return JSON.parse(clean.slice(s,e+1));
+    if(data.error) throw new Error(data.error);
+    const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"";
+    if(!text) throw new Error("Empty AI response");
+    const result=robustParseJSON(text);
+    // Sanitize all field values to be safe
+    if(result.fields) result.fields=result.fields.map(f=>({...f,value:sanitizeForJSON(f.value||"")}));
+    return result;
   };
 
   // Load a brand template into the editor
@@ -1558,10 +1575,11 @@ Extrait TOUS les textes importants (noms, dates, montants, références, adresse
     try{
       const pdfB64=BRAND_DATA[brand.id].pdf;
       // Render PDF to image
-      const {dataUrl}=await renderPDFtoImage(pdfB64);
+      const {dataUrl,width,height}=await renderPDFtoImage(pdfB64);
       setPdfImage(dataUrl);
-      // Analyze with Claude
-      const result=await analyzeWithClaude(pdfB64);
+      // Analyze with Claude using the RENDERED IMAGE (more reliable than PDF document type)
+      const imgB64=dataUrl.split(",")[1];
+      const result=await analyzeWithClaude(imgB64,"image/jpeg");
       setFields((result.fields||[]).map((f,i)=>({
         id:f.id||`f${i}`,
         label:f.label||`Champ ${i+1}`,
@@ -1573,9 +1591,10 @@ Extrait TOUS les textes importants (noms, dates, montants, références, adresse
         fontSize:f.fontSize||13,
       })));
     }catch(e){
-      console.error(e);
-      showToast("❌ Erreur. Réessaie.");
-      setMode(null);
+      console.error("PDF analyze error:",e);
+      showToast("❌ "+e.message.slice(0,60));
+      // Don't exit editor - show empty fields so user can still see the PDF
+      setFields([]);
     }finally{setAnalyzing(false);}
   };
 
@@ -1598,7 +1617,9 @@ Extrait TOUS les textes importants (noms, dates, montants, références, adresse
     try{
       const {dataUrl}=await renderPDFtoImage(b64);
       setPdfImage(dataUrl);
-      const result=await analyzeWithClaude(b64);
+      // Send rendered image to Claude (avoids PDF document type issues)
+      const imgB64=dataUrl.split(",")[1];
+      const result=await analyzeWithClaude(imgB64,"image/jpeg");
       setFields((result.fields||[]).map((f,i)=>({
         id:f.id||`f${i}`,label:f.label||`Champ ${i+1}`,value:f.value||"",
         x:Math.max(0,Math.min(95,(f.x||5))),
@@ -1608,9 +1629,9 @@ Extrait TOUS les textes importants (noms, dates, montants, références, adresse
         fontSize:f.fontSize||13,
       })));
     }catch(e){
-      console.error(e);
-      showToast("❌ Analyse échouée.");
-      setMode(null);
+      console.error("Upload analyze error:",e);
+      showToast("❌ "+e.message.slice(0,60));
+      setFields([]);
     }finally{setAnalyzing(false);}
   };
 
