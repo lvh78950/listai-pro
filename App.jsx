@@ -34,7 +34,7 @@ const db = {
   async delListing(uid,id,tok){return supa.delete("listings",id,tok);},
   async clearListings(uid,tok){return supa.deleteWhere("listings","user_id",uid,tok);},
   async getStock(uid,tok){const d=await supa.select("stock",{user_id:uid},tok);return Array.isArray(d)?d:[];},
-  async addStock(uid,a,tok){return supa.insert("stock",{user_id:uid,titre:a.titre,marque:a.marque||"",taille:a.taille||"",prix:a.prix||"",plateforme:a.plateforme||"Vinted",etat:a.etat||"",notes:a.notes||"",statut:a.statut||"en_vente",date_ajout:a.dateAjout||""},tok);},
+  async addStock(uid,a,tok){return supa.insert("stock",{user_id:uid,titre:a.titre,marque:a.marque||"",taille:a.taille||"",prix:a.prix||"",plateforme:a.plateforme||"Vinted",etat:a.etat||"",notes:a.notes||"",statut:a.statut||"en_vente",date_ajout:a.dateAjout||"",photo:a.photo||""},tok);},
   async updStock(uid,id,fields,tok){return supa.update("stock",id,{...fields,updated_at:new Date().toISOString()},tok);},
   async delStock(uid,id,tok){return supa.delete("stock",id,tok);},
   async getVentes(uid,tok){const d=await supa.select("ventes",{user_id:uid},tok);return Array.isArray(d)?d:[];},
@@ -877,10 +877,11 @@ function TabAgent({dark,session,history,stock}){
 
 // ── TAB STOCK ─────────────────────────────────────────────────────────────────
 function TabStock({dark,session,stock,setStock,history}){
-  const [form,setForm]=useState({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:""});
+  const [form,setForm]=useState({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});
   const [showForm,setShowForm]=useState(false);
   const [filter,setFilter]=useState("tous");
   const [saving,setSaving]=useState(false);
+  const photoStockRef=useRef();
   const statuts=[{k:"en_vente",l:"En vente",c:"#007aff"},{k:"vendu",l:"Vendu",c:"#34c759"},{k:"reserve",l:"Réservé",c:"#ff9500"}];
   const filtered=filter==="tous"?stock:stock.filter(s=>s.statut===filter);
   const totalCA=stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
@@ -890,7 +891,7 @@ function TabStock({dark,session,stock,setStock,history}){
     const a={...form,statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR")};
     const saved=await db.addStock(session.user.id,a,session.access_token);
     if(saved?.id)setStock(prev=>[{...a,id:saved.id},...prev]);
-    setForm({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:""});setShowForm(false);setSaving(false);
+    setForm({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});setShowForm(false);setSaving(false);
   };
   const updateStatut=async(id,statut)=>{await db.updStock(session.user.id,id,{statut},session.access_token);setStock(prev=>prev.map(s=>s.id===id?{...s,statut}:s));};
   const deleteArticle=async(id)=>{await db.delStock(session.user.id,id,session.access_token);setStock(prev=>prev.filter(s=>s.id!==id));};
@@ -928,6 +929,28 @@ function TabStock({dark,session,stock,setStock,history}){
         <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Prix (€)</div><Inp type="number" value={form.prix} onChange={e=>setForm(p=>({...p,prix:e.target.value}))} placeholder="25" dark={dark}/></div>
         <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Plateforme</div><select value={form.plateforme} onChange={e=>setForm(p=>({...p,plateforme:e.target.value}))} style={{width:"100%",padding:"12px 14px",border:`1.5px solid ${T.border(dark)}`,borderRadius:10,fontSize:14,background:T.card(dark),color:T.text(dark),outline:"none"}}>{PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></div>
       </div>
+      {/* Photo */}
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>📸 Photo (visible dans la vitrine)</div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {form.photo
+            ?<div style={{position:"relative",width:54,height:54,borderRadius:10,overflow:"hidden",flexShrink:0}}>
+                <img src={form.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <button onClick={()=>setForm(p=>({...p,photo:""}))} style={{position:"absolute",top:2,right:2,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(0,0,0,0.65)",color:"white",fontSize:10,cursor:"pointer",lineHeight:"16px",textAlign:"center"}}>×</button>
+              </div>
+            :<div onClick={()=>photoStockRef.current.click()} style={{width:54,height:54,borderRadius:10,border:`2px dashed ${T.border(dark)}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:T.card2(dark),fontSize:22,flexShrink:0}}>📷</div>
+          }
+          <button onClick={()=>photoStockRef.current.click()} style={{padding:"7px 14px",borderRadius:9,border:`1.5px solid ${GOLD}`,background:`${GOLD}10`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+            {form.photo?"Changer la photo":"+ Ajouter une photo"}
+          </button>
+        </div>
+        <input ref={photoStockRef} type="file" accept="image/*" hidden onChange={e=>{
+          const file=e.target.files[0];if(!file)return;
+          const reader=new FileReader();
+          reader.onload=ev=>setForm(p=>({...p,photo:ev.target.result}));
+          reader.readAsDataURL(file);
+        }}/>
+      </div>
       <div style={{display:"flex",gap:8}}><Btn onClick={addArticle} disabled={saving} small>{saving?"☁️ Sauvegarde...":"Ajouter"}</Btn><Btn onClick={()=>setShowForm(false)} variant="ghost" small>Annuler</Btn></div>
     </Card>}
 
@@ -941,9 +964,13 @@ function TabStock({dark,session,stock,setStock,history}){
 
     {filtered.length===0?<Empty emoji="📦" title="Aucun article" sub="Ajoute ton premier article en stock !"/>:
     <div>{filtered.map(art=>{const s=statuts.find(x=>x.k===art.statut);return <Card key={art.id} dark={dark}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-        <div style={{flex:1}}><p style={{margin:"0 0 3px",fontSize:13,fontWeight:700,color:T.text(dark)}}>{art.titre}</p><p style={{margin:0,fontSize:10,color:T.text2(dark)}}>{art.marque} · {art.taille} · {art.plateforme}</p></div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
+      <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
+        {art.photo&&<img src={art.photo} alt="" style={{width:52,height:52,borderRadius:10,objectFit:"cover",flexShrink:0,border:`1px solid ${T.border(dark)}`}}/>}
+        <div style={{flex:1,minWidth:0}}>
+          <p style={{margin:"0 0 2px",fontSize:13,fontWeight:700,color:T.text(dark),overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{art.titre}</p>
+          <p style={{margin:0,fontSize:10,color:T.text2(dark)}}>{art.marque}{art.taille?" · "+art.taille:""} · {art.plateforme}</p>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
           <span style={{fontSize:15,fontWeight:900,color:GOLD}}>{art.prix}€</span>
           <span style={{padding:"3px 8px",borderRadius:20,background:`${s.c}15`,color:s.c,fontSize:10,fontWeight:700}}>{s.l}</span>
         </div>
@@ -1672,6 +1699,96 @@ export default function App(){
           <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:16}}>{history.length} annonce(s) · {stock.filter(s=>s.statut==="en_vente").length} en vente · {ventes.length} vente(s)</div>
           <button onClick={()=>openTab("annonce")} style={{padding:"10px 20px",borderRadius:12,border:"none",background:GRAD_O,color:"white",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 16px rgba(255,107,43,0.5)"}}>⚡ Nouvelle annonce</button>
         </div>
+
+        {/* ── VITRINE STOCK ──────────────────────────────────── */}
+        {stock.length>0&&<div style={{marginBottom:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>🛍️ Ma vitrine</div>
+              <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {stock.filter(s=>s.statut==="vendu").length} vendu(s)</div>
+            </div>
+            <button onClick={()=>openTab("stock")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>Voir tout →</button>
+          </div>
+
+          {/* Filtres statut */}
+          {(()=>{
+            const [vitFilter,setVitFilter]=window._vitFilter||[null,null];
+            if(!window._vitFilter){
+              // Use a ref-like trick via window for this inline component
+              window._vitFilterState=window._vitFilterState||"en_vente";
+            }
+            return null;
+          })()}
+
+          {/* Scroll horizontal */}
+          <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+            <style>{`.vitrine-scroll::-webkit-scrollbar{display:none}`}</style>
+            {stock.map((s,i)=>{
+              const ETAT_COLORS={"Neuf avec étiquette":"#34c759","Neuf sans étiquette":"#30d158","Très bon état":"#007aff","Bon état":"#ff9500","Satisfaisant":"#ff3b30"};
+              const etatColor=ETAT_COLORS[s.etat]||"#8e8e93";
+              const isVendu=s.statut==="vendu";
+              return(
+                <div key={s.id||i} onClick={()=>openTab("stock")} style={{
+                  flexShrink:0,width:130,borderRadius:16,overflow:"hidden",cursor:"pointer",
+                  background:dark?"#1c1c1e":"#ffffff",
+                  border:`1px solid ${dark?"#3a3a3c":"#e5e5ea"}`,
+                  boxShadow:"0 2px 12px rgba(0,0,0,0.08)",
+                  opacity:isVendu?0.6:1,
+                  transition:"transform 0.15s",
+                }}>
+                  {/* Photo ou placeholder */}
+                  <div style={{position:"relative",height:110,background:dark?"#2c2c2e":"#f2f2f7",overflow:"hidden"}}>
+                    {s.photo
+                      ?<img src={s.photo} alt={s.titre} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:4}}>
+                        <div style={{fontSize:28}}>👕</div>
+                        <div style={{fontSize:9,color:dark?"#636366":"#aeaeb2",fontWeight:600}}>Pas de photo</div>
+                       </div>
+                    }
+                    {/* Badge statut */}
+                    <div style={{position:"absolute",top:6,left:6,padding:"2px 7px",borderRadius:20,fontSize:9,fontWeight:800,
+                      background:isVendu?"#ff3b30":s.statut==="reserve"?"#ff9500":"#34c759",color:"white",letterSpacing:"0.3px"}}>
+                      {isVendu?"VENDU":s.statut==="reserve"?"RÉSERVÉ":"EN VENTE"}
+                    </div>
+                    {/* Badge étatcolor */}
+                    <div style={{position:"absolute",top:6,right:6,width:8,height:8,borderRadius:"50%",background:etatColor,boxShadow:`0 0 0 2px white`}}/>
+                  </div>
+                  {/* Infos */}
+                  <div style={{padding:"8px 10px"}}>
+                    <div style={{fontSize:11,fontWeight:700,color:dark?"#f5f5f7":"#1d1d1f",lineHeight:1.3,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.titre||"Article"}</div>
+                    <div style={{fontSize:10,color:dark?"#aeaeb2":"#6e6e73",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.marque}{s.taille?" · "+s.taille:""}</div>
+                    <div style={{fontSize:13,fontWeight:900,color:GOLD}}>{s.prix?s.prix+"€":"—"}</div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Carte + Ajouter */}
+            <div onClick={()=>openTab("stock")} style={{
+              flexShrink:0,width:130,borderRadius:16,cursor:"pointer",
+              background:"transparent",border:`2px dashed ${GOLD}50`,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+              gap:6,minHeight:170,transition:"all 0.15s",
+            }}>
+              <div style={{width:36,height:36,borderRadius:"50%",background:`${GOLD}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:GOLD}}>+</div>
+              <div style={{fontSize:11,fontWeight:700,color:GOLD,textAlign:"center",lineHeight:1.3}}>Ajouter un article</div>
+            </div>
+          </div>
+        </div>}
+
+        {/* Si stock vide : appel à l'action */}
+        {stock.length===0&&<div onClick={()=>openTab("stock")} style={{
+          marginBottom:20,borderRadius:16,border:`2px dashed ${GOLD}40`,
+          padding:"16px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,
+          background:dark?`${GOLD}08`:`${GOLD}06`,
+        }}>
+          <div style={{width:44,height:44,borderRadius:14,background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🛍️</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",marginBottom:2}}>Ta vitrine est vide</div>
+            <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>Ajoute tes articles en vente avec leurs photos !</div>
+          </div>
+          <div style={{marginLeft:"auto",color:GOLD,fontSize:18}}>→</div>
+        </div>}
 
         {/* Grid cartes */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
