@@ -422,7 +422,17 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
       {(()=>{
         const lim=LIMITS[userPlan||"free"];
         const now=new Date();
-        const used=history.filter(h=>{try{const d=new Date(h.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}catch{return false;}}).length;
+        // Count annonces this month - handles French date format "23 juin, 16:01"
+        const monthNames=["janv","févr","mars","avr","mai","juin","juil","août","sept","oct","nov","déc"];
+        const curMonth=monthNames[now.getMonth()];
+        const curYear=now.getFullYear().toString();
+        const used=history.filter(h=>{
+          if(!h.date) return false;
+          // ISO date format
+          try{const d=new Date(h.date);if(!isNaN(d))return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}catch{}
+          // French format: "23 juin, 16:01" or "23 juin. 2024"
+          return h.date.toLowerCase().includes(curMonth)&&(h.date.includes(curYear)||!h.date.includes("20"));
+        }).length;
         const canGen=used<lim.annonces;
         return canGen
           ?<div style={{display:"flex",gap:10}}>
@@ -1048,7 +1058,7 @@ ${hashtags}`.trim();
         const canAdd=stock.length<lim.stock;
         return canAdd
           ?<button onClick={()=>setShowForm(!showForm)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>+ Ajouter</button>
-          :<button onClick={()=>setShowPricingModal&&setShowPricingModal(true)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:"#ff3b30",color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>🚫 Limite ({lim.stock})</button>;
+          :<button onClick={()=>setShowPricingModal(true)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:"#ff3b30",color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>🚫 Limite ({lim.stock} max)</button>;
       })()}
     </div>
 
