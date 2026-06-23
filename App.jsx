@@ -1493,7 +1493,7 @@ function TabPDF({dark}){
     return window.pdfjsLib;
   };
 
-  // Render PDF page to canvas image + extract text items with EXACT positions
+  // Render PDF: background WITHOUT text layer, then extract text positions separately
   const renderAndExtractPDF=async(pdfBase64)=>{
     const lib=await loadPDFJS();
     const bin=atob(pdfBase64);
@@ -1504,28 +1504,54 @@ function TabPDF({dark}){
     const SCALE=1.8;
     const vp=page.getViewport({scale:SCALE});
 
-    // Render to canvas
+    // ── PASS 1: render WITHOUT text (logos, borders, background only) ──
     const canvas=document.createElement("canvas");
     canvas.width=vp.width; canvas.height=vp.height;
     const ctx=canvas.getContext("2d");
-    await page.render({canvasContext:ctx,viewport:vp}).promise;
-    const dataUrl=canvas.toDataURL("image/jpeg",0.92);
+    // Fill white background first
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    // Render with text operators disabled via operatorList filter
+    const renderTask=page.render({
+      canvasContext:ctx,
+      viewport:vp,
+      // canvasFactory not needed; we'll blank text after render
+    });
+    await renderTask.promise;
 
-    // Extract text items with precise positions
+    // ── PASS 2: blank out all text regions with white rectangles ──
+    // This hides the baked-in text so our inputs can replace it cleanly
     const tc=await page.getTextContent();
-    const items=tc.items.map(item=>{
-      if(!item.str||!item.str.trim()) return null;
-      // pdf.js transform: [scaleX,skewX,skewY,scaleY,offsetX,offsetY]
+    ctx.fillStyle="#ffffff";
+    const items=[];
+    for(const item of tc.items){
+      if(!item.str||!item.str.trim()) continue;
       const tx=lib.Util.transform(vp.transform,item.transform);
-      // tx[4]=x, tx[5]=y (from bottom-left), item.height
-      const x=(tx[4]/vp.width)*100;
-      const y=((vp.height-tx[5])/vp.height)*100;
-      const w=Math.max(3,(item.width*SCALE/vp.width)*100);
-      const h=Math.max(1.5,(item.height*SCALE/vp.height)*100);
-      const fontSize=Math.round(item.height*SCALE*0.85);
-      return {text:item.str.trim(),x:Math.max(0,x),y:Math.max(0,y-h),w:Math.min(60,w),h:Math.min(8,h),fontSize:Math.max(8,Math.min(20,fontSize))};
-    }).filter(Boolean);
+      // tx[4]=x (left), tx[5]=y (baseline from top in canvas coords)
+      const cx=tx[4];
+      const cy=tx[5];
+      const cw=(item.width||0)*SCALE;
+      const ch=(item.height||12)*SCALE;
+      // Erase text region: go slightly above baseline
+      ctx.fillRect(cx-1, cy-ch-2, cw+2, ch+4);
 
+      // Compute % positions for overlay
+      const xPct=(cx/vp.width)*100;
+      const yPct=(cy/vp.height)*100 - (ch/vp.height)*100;
+      const wPct=Math.max(3,(cw/vp.width)*100);
+      const hPct=Math.max(1.5,(ch/vp.height)*100);
+      const fontSize=Math.round(ch*0.78);
+      items.push({
+        text:item.str.trim(),
+        x:Math.max(0,Math.min(95,xPct)),
+        y:Math.max(0,Math.min(95,yPct)),
+        w:Math.min(60,wPct),
+        h:Math.min(8,hPct),
+        fontSize:Math.max(8,Math.min(22,fontSize)),
+      });
+    }
+
+    const dataUrl=canvas.toDataURL("image/jpeg",0.95);
     return {dataUrl,width:vp.width,height:vp.height,textItems:items};
   };
 
@@ -1647,7 +1673,7 @@ function TabPDF({dark}){
   const handlePrint=()=>{
     if(!pdfImage) return;
     const fieldsHTML=fields.map(f=>`
-      <div style="position:absolute;left:${f.x}%;top:${f.y}%;width:${f.w}%;font-size:${f.fontSize}px;line-height:1.2;color:#000;font-family:-apple-system,sans-serif;white-space:pre-wrap;word-break:break-word;">
+      <div style="position:absolute;left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;font-size:${f.fontSize}px;line-height:normal;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;white-space:nowrap;overflow:hidden;background:white;display:flex;align-items:center;">
         ${(f.value||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
       </div>`).join("");
     const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{width:100%;background:white}.page{position:relative;width:100%;display:block}.page img{width:100%;display:block}.overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}@media print{body{margin:0}}</style></head><body><div class="page"><img src="${pdfImage}"/><div class="overlay">${fieldsHTML}</div></div></body></html>`;
@@ -1801,33 +1827,32 @@ function TabPDF({dark}){
               style={{
                 width:"100%",
                 fontSize:`${f.fontSize||12}px`,
-                background:"transparent",
-                border:"none",
-                borderBottom:"1.5px solid transparent",
-                borderRadius:0,
-                padding:"0 2px",
+                background:"white",
+                border:"1px solid transparent",
+                borderRadius:2,
+                padding:"0 1px",
                 margin:0,
                 color:"#1a1a1a",
                 outline:"none",
                 fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif",
-                lineHeight:`${(f.h||3)*1.1}%`,
+                lineHeight:"normal",
+                height:`${(f.h||2.5)*1.05}%`,
                 cursor:"text",
                 boxSizing:"border-box",
                 whiteSpace:"nowrap",
                 overflow:"hidden",
               }}
               onFocus={e=>{
-                e.target.style.background="rgba(124,58,237,0.12)";
-                e.target.style.borderBottomColor="#7C3AED";
+                e.target.style.background="#f0ebff";
+                e.target.style.borderColor="#7C3AED";
                 e.target.style.borderRadius="3px";
               }}
               onBlur={e=>{
-                e.target.style.background="transparent";
-                e.target.style.borderBottomColor="transparent";
-                e.target.style.borderRadius="0";
+                e.target.style.background="white";
+                e.target.style.borderColor="transparent";
               }}
-              onMouseEnter={e=>{if(document.activeElement!==e.target)e.target.style.borderBottomColor="rgba(124,58,237,0.3)";}}
-              onMouseLeave={e=>{if(document.activeElement!==e.target)e.target.style.borderBottomColor="transparent";}}
+              onMouseEnter={e=>{if(document.activeElement!==e.target)e.target.style.borderColor="rgba(124,58,237,0.4)";}}
+              onMouseLeave={e=>{if(document.activeElement!==e.target)e.target.style.borderColor="transparent";}}
             />
           </div>
         ))}
