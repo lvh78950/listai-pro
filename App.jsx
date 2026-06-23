@@ -1840,11 +1840,11 @@ const PLAN_FEATURES = {
 // Stripe & PayPal links (à remplacer par tes vrais liens)
 const PAYMENT_LINKS = {
   pro: {
-    stripe: "https://buy.stripe.com/YOUR_PRO_LINK",
+    stripe: "https://buy.stripe.com/test_cNieVe6v93zs8C77WleQM02",
     paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_PRO_PLAN",
   },
   expert: {
-    stripe: "https://buy.stripe.com/YOUR_EXPERT_LINK",
+    stripe: "https://buy.stripe.com/test_4gM28s2eT0ng5pV7WleQM01",
     paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_EXPERT_PLAN",
   },
 };
@@ -1891,7 +1891,7 @@ function TabPricing({dark,userPlan="free",onSubscribe}){
 
   const handleSubscribe=(planId,method)=>{
     const link=PAYMENT_LINKS[planId]?.[method];
-    if(link&&!link.includes("YOUR_")) window.open(link,"_blank");
+    if(link&&!link.includes("YOUR_")&&!link.includes("plan_id=YOUR")) window.open(link,"_blank");
     else setSelectedPayment({planId,method});
   };
 
@@ -2038,8 +2038,8 @@ export default function App(){
   const [tab,setTab]=useState("annonce");
   const [history,setHistory]=useState([]);
   const [userPlan,setUserPlan]=useState("free"); // "free" | "pro" | "expert"
-  // Owner emails with full Expert access (add yours here)
-  const OWNER_EMAILS=["lvh.78950@gmail.com"]; // ← TON EMAIL ICI
+  // Plans loaded from DB (user_plans table)
+  const OWNER_EMAILS=[]; // Legacy - now using DB
   const [showPricingModal,setShowPricingModal]=useState(false);
   const [stock,setStock]=useState([]);
   const [ventes,setVentes]=useState([]);
@@ -2083,9 +2083,14 @@ export default function App(){
     try{
       const [h,s,v]=await Promise.all([db.getListings(sess.user.id,sess.access_token),db.getStock(sess.user.id,sess.access_token),db.getVentes(sess.user.id,sess.access_token)]);
       setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result,photo:x.photo||""})));
-      // Set plan based on email (owners get Expert)
-      if(OWNER_EMAILS.includes(s.user.email)) setUserPlan("expert");
-      else setUserPlan("free"); // TODO: load from DB when real payments integrated
+      // Load plan from DB
+      try{
+        const plan=await db.getUserPlan(s.user.id, s.access_token);
+        setUserPlan(plan||"free");
+      }catch(e){
+        console.error("Plan load error:",e);
+        setUserPlan("free");
+      }
       // Show pricing modal on first login (once per session)
       const shownKey="listai_pricing_shown_"+s.user.id;
       if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
