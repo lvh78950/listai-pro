@@ -1807,11 +1807,10 @@ function useLimitCheck(userPlan, history, stock){
 }
 
 // ── TAB PRICING ───────────────────────────────────────────────────────────────
-function TabPricing({dark, userPlan="free", session}){
-  const [selectedPayment,setSelectedPayment]=useState(null); // {plan, method}
+function TabPricing({dark,userPlan="free",onSubscribe}){
   const [annual,setAnnual]=useState(false);
-
-  const currentPlan=userPlan||"free";
+  const [selectedPayment,setSelectedPayment]=useState(null);
+  const cur=userPlan||"free";
 
   const handleSubscribe=(planId,method)=>{
     const link=PAYMENT_LINKS[planId]?.[method];
@@ -1819,112 +1818,112 @@ function TabPricing({dark, userPlan="free", session}){
     else setSelectedPayment({planId,method});
   };
 
+  const TABLE_ROWS=[
+    {label:"Annonces IA / mois",     free:"10",     pro:"50",      expert:"∞"},
+    {label:"Articles en stock",       free:"20",     pro:"100",     expert:"∞"},
+    {label:"Agent IA / jour",         free:"3",      pro:"20",      expert:"∞"},
+    {label:"Tendances / jour",        free:"3",      pro:"20",      expert:"∞"},
+    {label:"Réponses auto / jour",    free:"5",      pro:"30",      expert:"∞"},
+    {label:"Ré-optimisation / mois",  free:"3",      pro:"20",      expert:"∞"},
+    {label:"PDF templates",           free:false,    pro:true,      expert:true},
+    {label:"Repost en 1 clic",        free:false,    pro:true,      expert:true},
+    {label:"Export stats",            free:false,    pro:true,      expert:true},
+    {label:"📖 Ebook vente",          free:false,    pro:false,     expert:true},
+    {label:"💬 Discord communauté",   free:false,    pro:false,     expert:true},
+  ];
+
+  const Cell=({val,planId})=>{
+    const isCur=cur===planId;
+    if(typeof val==="boolean") return(
+      <td style={{textAlign:"center",padding:"8px 4px",borderBottom:`1px solid ${dark?"#2c2c2e":"#f0f0f0"}`}}>
+        <span style={{fontSize:15,color:val?"#34c759":"#ff3b3050"}}>{val?"✓":"✗"}</span>
+      </td>
+    );
+    return(
+      <td style={{textAlign:"center",padding:"8px 4px",borderBottom:`1px solid ${dark?"#2c2c2e":"#f0f0f0"}`,fontSize:12,fontWeight:700,color:val==="∞"?GOLD:T.text(dark)}}>
+        {val}
+      </td>
+    );
+  };
+
   return <div>
     <Title dark={dark} sub="Choisis le plan adapté à ta boutique">💎 Abonnements</Title>
 
-    {/* Badge plan actuel */}
-    <div style={{
-      background:PLANS[currentPlan].grad,
-      borderRadius:14,padding:"12px 16px",marginBottom:16,
-      display:"flex",alignItems:"center",gap:10,
-      boxShadow:`0 4px 16px ${PLANS[currentPlan].color}40`
-    }}>
-      <span style={{fontSize:22}}>{PLANS[currentPlan].icon}</span>
+    {/* Plan actuel badge */}
+    <div style={{background:PLANS[cur].grad,borderRadius:14,padding:"12px 16px",marginBottom:16,display:"flex",alignItems:"center",gap:10,boxShadow:`0 4px 16px ${PLANS[cur].color}40`}}>
+      <span style={{fontSize:22}}>{PLANS[cur].icon}</span>
       <div>
-        <div style={{fontSize:13,fontWeight:800,color:"white"}}>Ton plan actuel : {PLANS[currentPlan].name}</div>
-        <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
-          {currentPlan==="free"?"Passe à Pro ou Expert pour débloquer plus de fonctionnalités":"Merci pour ton abonnement ! 🙏"}
-        </div>
+        <div style={{fontSize:13,fontWeight:800,color:"white"}}>Plan actuel : {PLANS[cur].name}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{cur==="free"?"Passe à Pro ou Expert pour débloquer plus !":"Merci pour ton abonnement 🙏"}</div>
       </div>
     </div>
 
-    {/* Toggle annuel */}
+    {/* Toggle mensuel/annuel */}
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
       <span style={{fontSize:12,color:T.text2(dark),fontWeight:600}}>Mensuel</span>
-      <div onClick={()=>setAnnual(!annual)} style={{
-        width:44,height:24,borderRadius:12,cursor:"pointer",position:"relative",
-        background:annual?GOLD:T.border(dark),transition:"background 0.2s"
-      }}>
+      <div onClick={()=>setAnnual(!annual)} style={{width:44,height:24,borderRadius:12,cursor:"pointer",position:"relative",background:annual?GOLD:T.border(dark),transition:"background 0.2s"}}>
         <div style={{position:"absolute",top:2,left:annual?22:2,width:20,height:20,borderRadius:"50%",background:"white",transition:"left 0.2s",boxShadow:"0 2px 4px rgba(0,0,0,0.2)"}}/>
       </div>
       <span style={{fontSize:12,color:T.text2(dark),fontWeight:600}}>Annuel</span>
-      <span style={{fontSize:10,fontWeight:800,color:"#34c759",background:"#34c75920",padding:"2px 8px",borderRadius:20}}>-20%</span>
+      <span style={{fontSize:10,fontWeight:800,color:"#34c759",background:"#34c75920",padding:"2px 8px",borderRadius:20}}>-20% · 2 mois offerts</span>
     </div>
 
-    {/* Cards plans */}
-    <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
-      {Object.entries(PLANS).map(([planId,plan])=>{
-        const isCurrentPlan=currentPlan===planId;
-        const isPopular=planId==="pro";
-        const price=annual&&plan.price>0?(plan.price*0.8*12).toFixed(2):plan.price;
-        const priceLabel=annual&&plan.price>0?"/an":"/mois";
-        const features=PLAN_FEATURES[planId];
-        return(
-          <div key={planId} style={{
-            borderRadius:20,overflow:"hidden",
-            border:`2px solid ${isCurrentPlan?plan.color:isPopular?plan.color+"60":T.border(dark)}`,
-            background:T.card(dark),
-            boxShadow:isPopular?`0 8px 32px ${plan.color}30`:"none",
-            position:"relative",
-          }}>
-            {isPopular&&<div style={{position:"absolute",top:12,right:12,background:plan.grad,color:"white",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,letterSpacing:"0.5px"}}>⭐ POPULAIRE</div>}
-            {isCurrentPlan&&<div style={{position:"absolute",top:12,right:12,background:"#34c759",color:"white",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20}}>✓ ACTUEL</div>}
+    {/* ── TABLEAU COMPARATIF ── */}
+    <div style={{background:T.card(dark),borderRadius:20,overflow:"hidden",border:`1px solid ${T.border(dark)}`,marginBottom:16}}>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead>
+          <tr>
+            <th style={{padding:"14px 12px",textAlign:"left",background:T.card2(dark),fontSize:11,color:T.text2(dark),fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",width:"40%"}}>Fonctionnalité</th>
+            {Object.entries(PLANS).map(([planId,plan])=>{
+              const price=annual&&plan.price>0?(plan.price*0.8*12).toFixed(0):plan.price;
+              const isCur=cur===planId;
+              return(
+                <th key={planId} style={{padding:"12px 6px",textAlign:"center",background:isCur?`${plan.color}20`:T.card2(dark),position:"relative"}}>
+                  {planId==="pro"&&<div style={{position:"absolute",top:0,left:0,right:0,height:3,background:plan.grad}}/>}
+                  <div style={{fontSize:14}}>{plan.icon}</div>
+                  <div style={{fontSize:12,fontWeight:900,color:plan.color}}>{plan.name}</div>
+                  <div style={{fontSize:plan.price===0?11:13,fontWeight:800,color:T.text(dark),marginTop:2}}>
+                    {plan.price===0?"Gratuit":`${price}€`}
+                  </div>
+                  {plan.price>0&&<div style={{fontSize:9,color:T.text3(dark)}}>{annual?"/ an":"/ mois"}</div>}
+                  {isCur&&<div style={{fontSize:9,fontWeight:800,color:plan.color,marginTop:2}}>✓ ACTUEL</div>}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {TABLE_ROWS.map((row,i)=>(
+            <tr key={i} style={{background:i%2===0?T.card(dark):T.card2(dark)+"80"}}>
+              <td style={{padding:"8px 12px",fontSize:11,color:T.text2(dark),fontWeight:600,borderBottom:`1px solid ${dark?"#2c2c2e":"#f0f0f0"}`}}>{row.label}</td>
+              <Cell val={row.free} planId="free"/>
+              <Cell val={row.pro} planId="pro"/>
+              <Cell val={row.expert} planId="expert"/>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            {/* Header */}
-            <div style={{background:plan.grad,padding:"20px 20px 16px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                <span style={{fontSize:24}}>{plan.icon}</span>
-                <span style={{fontSize:18,fontWeight:900,color:"white"}}>{plan.name}</span>
-              </div>
-              <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-                <span style={{fontSize:32,fontWeight:900,color:"white"}}>{plan.price===0?"Gratuit":`${price}€`}</span>
-                {plan.price>0&&<span style={{fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>{priceLabel}</span>}
-              </div>
-              {annual&&plan.price>0&&<div style={{fontSize:10,color:"rgba(255,255,255,0.7)",marginTop:4}}>soit {plan.price*0.8}€/mois · 2 mois offerts</div>}
-            </div>
-
-            {/* Features */}
-            <div style={{padding:"14px 18px"}}>
-              {features.map((f,i)=>(
-                <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
-                  <span style={{fontSize:14,flexShrink:0,color:f.ok?"#34c759":"#ff3b30"}}>{f.ok?"✓":"✗"}</span>
-                  <span style={{fontSize:12,color:f.ok?T.text(dark):T.text3(dark),fontWeight:f.ok?500:400}}>{f.label}</span>
+      {/* Boutons CTA dans le tableau */}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:0,padding:"12px 8px",background:T.card2(dark),borderTop:`1px solid ${T.border(dark)}`}}>
+        <div style={{fontSize:11,color:T.text2(dark),display:"flex",alignItems:"center",paddingLeft:4}}>Souscrire via →</div>
+        {Object.entries(PLANS).map(([planId,plan])=>{
+          const isCur=cur===planId;
+          return(
+            <div key={planId} style={{display:"flex",flexDirection:"column",gap:4,padding:"0 4px"}}>
+              {plan.price===0||isCur
+                ?<div style={{padding:"7px 4px",borderRadius:8,background:isCur?"#34c75920":"transparent",border:`1px solid ${isCur?"#34c759":T.border(dark)}`,textAlign:"center",fontSize:10,fontWeight:700,color:isCur?"#34c759":T.text3(dark)}}>
+                  {isCur?"✓ Actuel":"Gratuit"}
                 </div>
-              ))}
+                :<>
+                  <button onClick={()=>handleSubscribe(planId,"stripe")} style={{padding:"7px 4px",borderRadius:8,border:"none",background:plan.grad,color:"white",fontSize:10,fontWeight:800,cursor:"pointer"}}>💳 Stripe</button>
+                  <button onClick={()=>handleSubscribe(planId,"paypal")} style={{padding:"7px 4px",borderRadius:8,border:"none",background:"#0070ba",color:"white",fontSize:10,fontWeight:800,cursor:"pointer"}}>🅿️ PayPal</button>
+                </>
+              }
             </div>
-
-            {/* CTA */}
-            {!isCurrentPlan&&plan.price>0&&<div style={{padding:"0 16px 16px",display:"flex",gap:8}}>
-              <button onClick={()=>handleSubscribe(planId,"stripe")} style={{
-                flex:1,padding:"11px",borderRadius:12,border:"none",
-                background:plan.grad,color:"white",fontSize:13,fontWeight:800,
-                cursor:"pointer",boxShadow:`0 4px 14px ${plan.color}40`,
-                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-              }}>
-                💳 Stripe
-              </button>
-              <button onClick={()=>handleSubscribe(planId,"paypal")} style={{
-                flex:1,padding:"11px",borderRadius:12,border:`2px solid #0070ba`,
-                background:"#0070ba",color:"white",fontSize:13,fontWeight:800,
-                cursor:"pointer",
-                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-              }}>
-                🅿️ PayPal
-              </button>
-            </div>}
-            {isCurrentPlan&&plan.price>0&&<div style={{padding:"0 16px 16px"}}>
-              <button style={{width:"100%",padding:"11px",borderRadius:12,border:`2px solid ${plan.color}`,background:"transparent",color:plan.color,fontSize:13,fontWeight:800,cursor:"default"}}>
-                ✓ Abonnement actif
-              </button>
-            </div>}
-            {plan.price===0&&!isCurrentPlan&&<div style={{padding:"0 16px 16px"}}>
-              <button style={{width:"100%",padding:"11px",borderRadius:12,border:`2px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:13,fontWeight:700,cursor:"default"}}>
-                Plan actuel
-              </button>
-            </div>}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
 
     {/* FAQ */}
@@ -1933,7 +1932,7 @@ function TabPricing({dark, userPlan="free", session}){
       {[
         ["Puis-je annuler à tout moment ?","Oui, sans engagement. L'abonnement reste actif jusqu'à la fin de la période payée."],
         ["Comment fonctionne le paiement ?","Stripe (carte bancaire) ou PayPal. Renouvellement automatique mensuel ou annuel."],
-        ["Qu'est-ce que l'Ebook Expert ?","Un guide complet de stratégie de revente : pricing, photos, timing, négociation. Livré par email."],
+        ["Qu'est-ce que l'Ebook Expert ?","Un guide complet : pricing, photos, timing, négociation. Livré par email après souscription."],
         ["Le Discord est-il disponible ?","Il arrive très bientôt ! Les membres Expert seront les premiers invités."],
       ].map(([q,a],i)=>(
         <div key={i} style={{marginBottom:i<3?12:0,paddingBottom:i<3?12:0,borderBottom:i<3?`1px solid ${T.border(dark)}`:"none"}}>
@@ -1943,21 +1942,12 @@ function TabPricing({dark, userPlan="free", session}){
       ))}
     </Card>
 
-    {/* Modal paiement - lien pas encore configuré */}
-    {selectedPayment&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(6px)"}}
-      onClick={()=>setSelectedPayment(null)}>
+    {selectedPayment&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(6px)"}} onClick={()=>setSelectedPayment(null)}>
       <div style={{background:T.card(dark),borderRadius:20,padding:24,maxWidth:340,width:"100%"}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:18,fontWeight:900,color:T.text(dark),marginBottom:8}}>🔗 Lien de paiement</div>
-        <div style={{fontSize:13,color:T.text2(dark),marginBottom:16,lineHeight:1.6}}>
-          Configure ton lien {selectedPayment.method==="stripe"?"Stripe":"PayPal"} dans le code pour activer le paiement {PLANS[selectedPayment.planId].name}.
-        </div>
-        <div style={{background:T.card2(dark),borderRadius:10,padding:12,marginBottom:16}}>
-          <div style={{fontSize:11,color:T.text3(dark),marginBottom:4,fontWeight:600}}>Variable à modifier dans App.jsx :</div>
-          <div style={{fontSize:11,fontFamily:"monospace",color:GOLD}}>PAYMENT_LINKS.{selectedPayment.planId}.{selectedPayment.method}</div>
-        </div>
-        <button onClick={()=>setSelectedPayment(null)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer"}}>
-          OK, compris
-        </button>
+        <div style={{fontSize:18,fontWeight:900,color:T.text(dark),marginBottom:8}}>🔗 Configure le lien</div>
+        <div style={{fontSize:13,color:T.text2(dark),marginBottom:12,lineHeight:1.6}}>Remplace dans App.jsx la variable :</div>
+        <div style={{background:T.card2(dark),borderRadius:10,padding:12,marginBottom:16,fontFamily:"monospace",fontSize:11,color:GOLD}}>PAYMENT_LINKS.{selectedPayment?.planId}.{selectedPayment?.method}</div>
+        <button onClick={()=>setSelectedPayment(null)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer"}}>OK</button>
       </div>
     </div>}
   </div>;
@@ -1971,6 +1961,7 @@ export default function App(){
   const [tab,setTab]=useState("annonce");
   const [history,setHistory]=useState([]);
   const [userPlan,setUserPlan]=useState("free"); // "free" | "pro" | "expert"
+  const [showPricingModal,setShowPricingModal]=useState(false);
   const [stock,setStock]=useState([]);
   const [ventes,setVentes]=useState([]);
   const [resultToShow,setResultToShow]=useState(null);
@@ -2013,6 +2004,9 @@ export default function App(){
     try{
       const [h,s,v]=await Promise.all([db.getListings(sess.user.id,sess.access_token),db.getStock(sess.user.id,sess.access_token),db.getVentes(sess.user.id,sess.access_token)]);
       setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result,photo:x.photo||""})));
+      // Show pricing modal on first login (once per session)
+      const shownKey="listai_pricing_shown_"+s.user.id;
+      if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
       setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));
       setVentes(v);
     }catch{}
@@ -2047,7 +2041,7 @@ export default function App(){
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
     pdf:<TabPDF dark={dark}/>,
-    pricing:<TabPricing dark={dark} userPlan={userPlan} session={session}/>,
+    pricing:<TabPricing dark={dark} userPlan={userPlan}/>,
   };
 
   const openTab=(t)=>{setTab(t);setHomeView(false);};
