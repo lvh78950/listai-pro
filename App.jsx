@@ -61,6 +61,16 @@ const db = {
   },
   async delListing(uid,id,tok){return supa.delete("listings",id,tok);},
   async clearListings(uid,tok){return supa.deleteWhere("listings","user_id",uid,tok);},
+  async getUserPlan(uid,tok){
+    try{
+      const url=`${SUPA_URL}/rest/v1/user_plans?user_id=eq.${uid}&select=plan`;
+      const res=await fetch(url,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok}`,"Content-Type":"application/json"}});
+      if(!res.ok) return "free";
+      const data=await res.json();
+      if(Array.isArray(data)&&data.length>0) return data[0].plan||"free";
+      return "free";
+    }catch(e){console.error("getUserPlan error:",e);return "free";}
+  },
   async getStock(uid,tok){const d=await supa.select("stock",{user_id:uid},tok);return Array.isArray(d)?d:[];},
   async addStock(uid,a,tok){return supa.insert("stock",{user_id:uid,titre:a.titre,marque:a.marque||"",taille:a.taille||"",prix:a.prix||"",plateforme:a.plateforme||"Vinted",etat:a.etat||"",notes:a.notes||"",statut:a.statut||"en_vente",date_ajout:a.dateAjout||"",photo:a.photo||""},tok);},
   async updStock(uid,id,fields,tok){return supa.update("stock",id,{...fields,updated_at:new Date().toISOString()},tok);},
