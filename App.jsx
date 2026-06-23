@@ -1480,89 +1480,107 @@ function TabPDF({dark}){
   const setField=(id,val)=>setFields(prev=>prev.map(f=>f.id===id?{...f,value:val}:f));
 
   // Render PDF to image using pdf.js (loaded from CDN)
-  const renderPDFtoImage=async(pdfBase64)=>{
-    return new Promise(async(resolve,reject)=>{
-      try{
-        // Load pdf.js dynamically
-        if(!window.pdfjsLib){
-          await new Promise((res,rej)=>{
-            const s=document.createElement("script");
-            s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-            s.onload=res; s.onerror=rej;
-            document.head.appendChild(s);
-          });
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc=
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-        }
-        const binaryStr=atob(pdfBase64);
-        const bytes=new Uint8Array(binaryStr.length);
-        for(let i=0;i<binaryStr.length;i++) bytes[i]=binaryStr.charCodeAt(i);
-        const pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;
-        const page=await pdf.getPage(1);
-        const viewport=page.getViewport({scale:1.8});
-        const canvas=document.createElement("canvas");
-        canvas.width=viewport.width;
-        canvas.height=viewport.height;
-        const ctx=canvas.getContext("2d");
-        await page.render({canvasContext:ctx,viewport}).promise;
-        resolve({dataUrl:canvas.toDataURL("image/jpeg",0.92),width:viewport.width,height:viewport.height});
-      }catch(e){reject(e);}
+  // ── PDF UTILS ──────────────────────────────────────────────────────────────
+  const loadPDFJS=async()=>{
+    if(window.pdfjsLib) return window.pdfjsLib;
+    await new Promise((res,rej)=>{
+      const s=document.createElement("script");
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.onload=res;s.onerror=rej;document.head.appendChild(s);
     });
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    return window.pdfjsLib;
   };
 
-  // Analyze PDF with Claude - get fields WITH coordinates
-  const sanitizeForJSON=(str)=>{
-    if(typeof str!=="string") return str;
-    return str
-      .replace(/\r\n/g," ").replace(/\n/g," ").replace(/\r/g," ")
-      .replace(/\t/g," ").replace(/[\x00-\x1F\x7F]/g,"")
-      .replace(/"/g,"'").replace(/\\/g,"").trim();
+  // Render PDF page to canvas image + extract text items with EXACT positions
+  const renderAndExtractPDF=async(pdfBase64)=>{
+    const lib=await loadPDFJS();
+    const bin=atob(pdfBase64);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const pdf=await lib.getDocument({data:bytes}).promise;
+    const page=await pdf.getPage(1);
+    const SCALE=1.8;
+    const vp=page.getViewport({scale:SCALE});
+
+    // Render to canvas
+    const canvas=document.createElement("canvas");
+    canvas.width=vp.width; canvas.height=vp.height;
+    const ctx=canvas.getContext("2d");
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+    const dataUrl=canvas.toDataURL("image/jpeg",0.92);
+
+    // Extract text items with precise positions
+    const tc=await page.getTextContent();
+    const items=tc.items.map(item=>{
+      if(!item.str||!item.str.trim()) return null;
+      // pdf.js transform: [scaleX,skewX,skewY,scaleY,offsetX,offsetY]
+      const tx=lib.Util.transform(vp.transform,item.transform);
+      // tx[4]=x, tx[5]=y (from bottom-left), item.height
+      const x=(tx[4]/vp.width)*100;
+      const y=((vp.height-tx[5])/vp.height)*100;
+      const w=Math.max(3,(item.width*SCALE/vp.width)*100);
+      const h=Math.max(1.5,(item.height*SCALE/vp.height)*100);
+      const fontSize=Math.round(item.height*SCALE*0.85);
+      return {text:item.str.trim(),x:Math.max(0,x),y:Math.max(0,y-h),w:Math.min(60,w),h:Math.min(8,h),fontSize:Math.max(8,Math.min(20,fontSize))};
+    }).filter(Boolean);
+
+    return {dataUrl,width:vp.width,height:vp.height,textItems:items};
   };
 
-  const robustParseJSON=(raw)=>{
-    if(!raw) throw new Error("Empty response");
-    // Step 1: strip markdown
-    let t=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-    // Step 2: extract between first { and last }
-    const s=t.indexOf("{"),e=t.lastIndexOf("}");
-    if(s===-1||e===-1) throw new Error("No JSON object found");
-    t=t.slice(s,e+1);
-    // Step 3: try direct parse
-    try{return JSON.parse(t);}catch{}
-    // Step 4: sanitize control chars then parse
-    try{
-      const cleaned=t
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"")
-        .replace(/\n/g," ").replace(/\r/g," ").replace(/\t/g," ");
-      return JSON.parse(cleaned);
-    }catch{}
-    // Step 5: fix broken string values (newlines inside JSON strings)
-    try{
-      const fixed=t.replace(/:\s*"((?:[^"\\]|\\.)*)"/gs,(match,val)=>{
-        const safe=val.replace(/[\x00-\x1F\x7F]/g," ").replace(/\n/g," ").replace(/\r/g,"");
-        return ': "'+safe+'"';
-      });
-      return JSON.parse(fixed);
-    }catch(err){throw new Error("JSON parse failed: "+err.message);}
-  };
+  // Ask Claude to identify which texts are the important editable fields
+  const identifyFields=async(imageB64,textItems)=>{
+    // Build a numbered list of all text items for Claude
+    const textList=textItems.map((t,i)=>`[${i}] "${t.text}"`).join("\n");
+    const prompt=`Voici tous les textes extraits de ce document PDF (numérotés).
+${textList}
 
-  const analyzeWithClaude=async(pdfBase64,mediaType="application/pdf")=>{
-    const prompt="Analyse ce PDF et extrait tous les champs texte modifiables avec leurs positions.\nReponds UNIQUEMENT en JSON sans markdown, sans backticks, sans saut de ligne dans les valeurs.\nFormat strict (valeurs sur une seule ligne, sans guillemets doubles dans les valeurs):\n{\"brand\":\"marque\",\"doc_type\":\"Facture\",\"fields\":[{\"id\":\"champ1\",\"label\":\"Libelle\",\"value\":\"valeur actuelle sur une ligne\",\"x\":10,\"y\":15,\"w\":35,\"h\":3,\"fontSize\":13}]}\nx,y=position % page haut-gauche. w,h=taille %. fontSize=10-18px.\nIMPORTANT: valeurs en UNE seule ligne, remplace les guillemets dans les valeurs par des apostrophes.";
-    // Send as image (jpeg from pdf.js render) - more reliable than PDF document type
-    const contentParts=mediaType.startsWith("image/")
-      ? [{type:"image",source:{type:"base64",media_type:mediaType,data:pdfBase64}},{type:"text",text:prompt}]
-      : [{type:"document",source:{type:"base64",media_type:mediaType,data:pdfBase64}},{type:"text",text:prompt}];
-    const body={model:"claude-sonnet-4-6",max_tokens:3000,messages:[{role:"user",content:contentParts}]};
+Identifie les champs MODIFIABLES importants (noms, dates, montants, références, adresses, numéros de commande/facture, articles).
+Réponds UNIQUEMENT en JSON, sans markdown, sans backtick:
+{"fields":[{"idx":0,"label":"Libellé court","value":"texte original"}]}
+idx = numéro exact du texte dans la liste. Inclus 8 à 20 champs maximum. Seulement les plus importants.`;
+
+    const body={model:"claude-sonnet-4-6",max_tokens:2000,messages:[{role:"user",content:[
+      {type:"image",source:{type:"base64",media_type:"image/jpeg",data:imageB64}},
+      {type:"text",text:prompt}
+    ]}]};
     const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    if(!res.ok){const err=await res.text();throw new Error("API "+res.status+": "+err.slice(0,100));}
+    if(!res.ok) throw new Error("API "+res.status);
     const data=await res.json();
     if(data.error) throw new Error(data.error);
-    const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"";
-    if(!text) throw new Error("Empty AI response");
-    const result=robustParseJSON(text);
-    // Sanitize all field values to be safe
-    if(result.fields) result.fields=result.fields.map(f=>({...f,value:sanitizeForJSON(f.value||"")}));
-    return result;
+    const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+    if(!text) throw new Error("Réponse vide");
+    // Robust JSON parse
+    let t=text.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+    const s=t.indexOf("{"),e=t.lastIndexOf("}");
+    if(s===-1) throw new Error("JSON introuvable");
+    t=t.slice(s,e+1);
+    try{return JSON.parse(t);}catch{
+      const cleaned=t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/\n/g," ").replace(/\r/g,"");
+      return JSON.parse(cleaned);
+    }
+  };
+
+  // Merge Claude's field identification with exact pdf.js positions
+  const buildFields=async(pdfBase64)=>{
+    const {dataUrl,textItems}=await renderAndExtractPDF(pdfBase64);
+    const imgB64=dataUrl.split(",")[1];
+    const {fields:identified}=await identifyFields(imgB64,textItems);
+    // Map each identified field to its exact text position
+    const result=identified.map((f,i)=>{
+      const item=textItems[f.idx];
+      if(!item) return null;
+      return {
+        id:`field_${i}`,
+        label:f.label||`Champ ${i+1}`,
+        value:f.value||item.text,
+        x:item.x, y:item.y, w:Math.max(item.w,15), h:item.h,
+        fontSize:item.fontSize,
+        origText:item.text,
+      };
+    }).filter(Boolean);
+    return {dataUrl,fields:result};
   };
 
   // Load a brand template into the editor
@@ -1574,26 +1592,13 @@ function TabPDF({dark}){
     setFields([]);
     try{
       const pdfB64=BRAND_DATA[brand.id].pdf;
-      // Render PDF to image
-      const {dataUrl,width,height}=await renderPDFtoImage(pdfB64);
+      const {dataUrl,fields:detected}=await buildFields(pdfB64);
       setPdfImage(dataUrl);
-      // Analyze with Claude using the RENDERED IMAGE (more reliable than PDF document type)
-      const imgB64=dataUrl.split(",")[1];
-      const result=await analyzeWithClaude(imgB64,"image/jpeg");
-      setFields((result.fields||[]).map((f,i)=>({
-        id:f.id||`f${i}`,
-        label:f.label||`Champ ${i+1}`,
-        value:f.value||"",
-        x:Math.max(0,Math.min(95,(f.x||5))),
-        y:Math.max(0,Math.min(95,(f.y||5+i*5))),
-        w:Math.max(5,Math.min(50,(f.w||25))),
-        h:Math.max(2,Math.min(10,(f.h||3))),
-        fontSize:f.fontSize||13,
-      })));
+      setFields(detected);
+      if(detected.length===0) showToast("⚠️ Aucun champ détecté");
     }catch(e){
-      console.error("PDF analyze error:",e);
-      showToast("❌ "+e.message.slice(0,60));
-      // Don't exit editor - show empty fields so user can still see the PDF
+      console.error("PDF error:",e);
+      showToast("❌ "+String(e.message||e).slice(0,80));
       setFields([]);
     }finally{setAnalyzing(false);}
   };
@@ -1615,22 +1620,13 @@ function TabPDF({dark}){
     });
     setUploadedPdfB64(b64);
     try{
-      const {dataUrl}=await renderPDFtoImage(b64);
+      const {dataUrl,fields:detected}=await buildFields(b64);
       setPdfImage(dataUrl);
-      // Send rendered image to Claude (avoids PDF document type issues)
-      const imgB64=dataUrl.split(",")[1];
-      const result=await analyzeWithClaude(imgB64,"image/jpeg");
-      setFields((result.fields||[]).map((f,i)=>({
-        id:f.id||`f${i}`,label:f.label||`Champ ${i+1}`,value:f.value||"",
-        x:Math.max(0,Math.min(95,(f.x||5))),
-        y:Math.max(0,Math.min(95,(f.y||5+i*5))),
-        w:Math.max(5,Math.min(50,(f.w||25))),
-        h:Math.max(2,Math.min(10,(f.h||3))),
-        fontSize:f.fontSize||13,
-      })));
+      setFields(detected);
+      if(detected.length===0) showToast("⚠️ Aucun champ détecté");
     }catch(e){
-      console.error("Upload analyze error:",e);
-      showToast("❌ "+e.message.slice(0,60));
+      console.error("Upload error:",e);
+      showToast("❌ "+String(e.message||e).slice(0,80));
       setFields([]);
     }finally{setAnalyzing(false);}
   };
@@ -1780,8 +1776,10 @@ function TabPDF({dark}){
         {fields.map(f=>(
           <div key={f.id} style={{
             position:"absolute",
-            left:`${f.x}%`, top:`${f.y}%`,
+            left:`${f.x}%`,
+            top:`${f.y}%`,
             width:`${f.w}%`,
+            minWidth:40,
           }}>
             <input
               type="text"
@@ -1790,21 +1788,34 @@ function TabPDF({dark}){
               title={f.label}
               style={{
                 width:"100%",
-                fontSize:`${f.fontSize||13}px`,
-                background:"rgba(124,58,237,0.08)",
-                border:"1px solid rgba(124,58,237,0.4)",
-                borderRadius:3,
-                padding:"1px 4px",
-                color:"#1d1d1f",
+                fontSize:`${f.fontSize||12}px`,
+                background:"transparent",
+                border:"none",
+                borderBottom:"1.5px solid transparent",
+                borderRadius:0,
+                padding:"0 2px",
+                margin:0,
+                color:"#1a1a1a",
                 outline:"none",
                 fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif",
-                lineHeight:1.3,
+                lineHeight:`${(f.h||3)*1.1}%`,
                 cursor:"text",
-                transition:"background 0.15s, border-color 0.15s",
                 boxSizing:"border-box",
+                whiteSpace:"nowrap",
+                overflow:"hidden",
               }}
-              onFocus={e=>{e.target.style.background="rgba(124,58,237,0.15)";e.target.style.borderColor="#7C3AED";}}
-              onBlur={e=>{e.target.style.background="rgba(124,58,237,0.08)";e.target.style.borderColor="rgba(124,58,237,0.4)";}}
+              onFocus={e=>{
+                e.target.style.background="rgba(124,58,237,0.12)";
+                e.target.style.borderBottomColor="#7C3AED";
+                e.target.style.borderRadius="3px";
+              }}
+              onBlur={e=>{
+                e.target.style.background="transparent";
+                e.target.style.borderBottomColor="transparent";
+                e.target.style.borderRadius="0";
+              }}
+              onMouseEnter={e=>{if(document.activeElement!==e.target)e.target.style.borderBottomColor="rgba(124,58,237,0.3)";}}
+              onMouseLeave={e=>{if(document.activeElement!==e.target)e.target.style.borderBottomColor="transparent";}}
             />
           </div>
         ))}
