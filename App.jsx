@@ -29,34 +29,42 @@ const supa = {
   // Upload photo base64 → Supabase Storage → returns public URL
   async uploadPhoto(base64DataUrl, uid, tok){
     try{
-      // Convert base64 data URL to blob
+      if(!base64DataUrl||!base64DataUrl.startsWith("data:")) return null;
       const arr=base64DataUrl.split(",");
-      const mime=arr[0].match(/:(.*?);/)[1];
+      if(arr.length<2) return null;
+      const mimeMatch=arr[0].match(/:(.*?);/);
+      if(!mimeMatch) return null;
+      const mime=mimeMatch[1]||"image/jpeg";
       const bstr=atob(arr[1]);
       const bytes=new Uint8Array(bstr.length);
       for(let i=0;i<bstr.length;i++) bytes[i]=bstr.charCodeAt(i);
       const blob=new Blob([bytes],{type:mime});
-      const ext=mime.split("/")[1]||"jpg";
+      const ext=mime.includes("png")?"png":mime.includes("webp")?"webp":"jpg";
       const filename=`${uid}/${Date.now()}.${ext}`;
-      // Upload to Supabase Storage bucket "photos"
       const res=await fetch(`${SUPA_URL}/storage/v1/object/photos/${filename}`,{
         method:"POST",
         headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":mime,"x-upsert":"true"},
         body:blob
       });
-      if(!res.ok) throw new Error("Upload failed: "+res.status);
-      // Return public URL
+      if(!res.ok){console.warn("Photo upload HTTP",res.status);return null;}
       return `${SUPA_URL}/storage/v1/object/public/photos/${filename}`;
     }catch(e){
       console.error("Photo upload error:",e);
-      return null; // fallback: no photo
+      return null;
     }
   }
 };
 
 const db = {
   async getListings(uid,tok){const d=await supa.select("listings",{user_id:uid},tok);return Array.isArray(d)?d:[];},
-  async addListing(uid,e,tok){return supa.insert("listings",{user_id:uid,date:e.date,result:e.result,photo:e.photo||""},tok);},
+  async addListing(uid,e,tok){
+    // Try with photo field first, fallback without if column doesn't exist
+    const withPhoto=await supa.insert("listings",{user_id:uid,date:e.date,result:e.result,photo:e.photo||""},tok);
+    if(withPhoto?.error||withPhoto?.code){
+      return supa.insert("listings",{user_id:uid,date:e.date,result:e.result},tok);
+    }
+    return withPhoto;
+  },
   async delListing(uid,id,tok){return supa.delete("listings",id,tok);},
   async clearListings(uid,tok){return supa.deleteWhere("listings","user_id",uid,tok);},
   async getStock(uid,tok){const d=await supa.select("stock",{user_id:uid},tok);return Array.isArray(d)?d:[];},
@@ -330,8 +338,8 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
       setResult(parsed);
       // Upload first photo to Supabase Storage → get persistent URL
       let photoUrl="";
-      if(images.length>0){
-        const dataUrl=images[0].url||("data:"+images[0].type+";base64,"+images[0].base64);
+      if(images.length>0&&images[0].base64){
+        const dataUrl="data:"+(images[0].type||"image/jpeg")+";base64,"+images[0].base64;
         photoUrl=await supa.uploadPhoto(dataUrl,session.user.id,session.access_token)||"";
       }
       const entry={date:new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),result:parsed,photo:photoUrl};
