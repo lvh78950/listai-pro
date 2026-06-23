@@ -27,29 +27,28 @@ const supa = {
   async resetPassword(email){await fetch(`${SUPA_URL}/auth/v1/recover`,{method:"POST",headers:{apikey:SUPA_KEY,"Content-Type":"application/json"},body:JSON.stringify({email})});},
   async refreshToken(refresh_token){const res=await fetch(`${SUPA_URL}/auth/v1/token?grant_type=refresh_token`,{method:"POST",headers:{apikey:SUPA_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token})});return res.json();},
   // Upload photo base64 → Supabase Storage → returns public URL
+  // Compress + store photo as base64 directly in DB (no external storage needed)
   async uploadPhoto(base64DataUrl, uid, tok){
     try{
       if(!base64DataUrl||!base64DataUrl.startsWith("data:")) return null;
-      const arr=base64DataUrl.split(",");
-      if(arr.length<2) return null;
-      const mimeMatch=arr[0].match(/:(.*?);/);
-      if(!mimeMatch) return null;
-      const mime=mimeMatch[1]||"image/jpeg";
-      const bstr=atob(arr[1]);
-      const bytes=new Uint8Array(bstr.length);
-      for(let i=0;i<bstr.length;i++) bytes[i]=bstr.charCodeAt(i);
-      const blob=new Blob([bytes],{type:mime});
-      const ext=mime.includes("png")?"png":mime.includes("webp")?"webp":"jpg";
-      const filename=`${uid}/${Date.now()}.${ext}`;
-      const res=await fetch(`${SUPA_URL}/storage/v1/object/photos/${filename}`,{
-        method:"POST",
-        headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":mime,"x-upsert":"true"},
-        body:blob
+      // Compress to max ~80KB using canvas resize
+      return await new Promise(resolve=>{
+        const img=new Image();
+        img.onload=()=>{
+          const MAX=400;
+          let w=img.width,h=img.height;
+          if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+          else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+          const canvas=document.createElement("canvas");
+          canvas.width=w;canvas.height=h;
+          canvas.getContext("2d").drawImage(img,0,0,w,h);
+          resolve(canvas.toDataURL("image/jpeg",0.7));
+        };
+        img.onerror=()=>resolve(null);
+        img.src=base64DataUrl;
       });
-      if(!res.ok){console.warn("Photo upload HTTP",res.status);return null;}
-      return `${SUPA_URL}/storage/v1/object/public/photos/${filename}`;
     }catch(e){
-      console.error("Photo upload error:",e);
+      console.error("Photo compress error:",e);
       return null;
     }
   }
@@ -58,12 +57,7 @@ const supa = {
 const db = {
   async getListings(uid,tok){const d=await supa.select("listings",{user_id:uid},tok);return Array.isArray(d)?d:[];},
   async addListing(uid,e,tok){
-    // Try with photo field first, fallback without if column doesn't exist
-    const withPhoto=await supa.insert("listings",{user_id:uid,date:e.date,result:e.result,photo:e.photo||""},tok);
-    if(withPhoto?.error||withPhoto?.code){
-      return supa.insert("listings",{user_id:uid,date:e.date,result:e.result},tok);
-    }
-    return withPhoto;
+    return supa.insert("listings",{user_id:uid,date:e.date,result:e.result,photo:e.photo||""},tok);
   },
   async delListing(uid,id,tok){return supa.delete("listings",id,tok);},
   async clearListings(uid,tok){return supa.deleteWhere("listings","user_id",uid,tok);},
@@ -342,6 +336,7 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
         const dataUrl="data:"+(images[0].type||"image/jpeg")+";base64,"+images[0].base64;
         photoUrl=await supa.uploadPhoto(dataUrl,session.user.id,session.access_token)||"";
       }
+      // photoUrl is now a compressed base64 data URL stored directly in DB
       const entry={date:new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),result:parsed,photo:photoUrl};
       const saved=await db.addListing(session.user.id,entry,session.access_token);
       setHistory(prev=>[{...entry,id:saved?.id||Date.now().toString()},...prev].slice(0,50));
@@ -943,11 +938,10 @@ function TabStock({dark,session,stock,setStock,history,openTab}){
 
   const addArticle=async()=>{
     if(!form.titre.trim())return;setSaving(true);
-    // Upload photo to Storage if present
+    // Compress photo to base64 if present
     let photoUrl=form.photo||"";
     if(form.photo&&form.photo.startsWith("data:")){
-      const uploaded=await supa.uploadPhoto(form.photo,session.user.id,session.access_token);
-      photoUrl=uploaded||"";
+      photoUrl=await supa.uploadPhoto(form.photo,session.user.id,session.access_token)||form.photo||"";
     }
     const a={...form,photo:photoUrl,statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR")};
     const saved=await db.addStock(session.user.id,a,session.access_token);
