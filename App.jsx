@@ -299,7 +299,9 @@ Important: prix_recommande et prix_mini doivent etre des nombres SANS le symbole
       const parsed=pj(text);
       if(!parsed||!parsed.titre)throw new Error("JSON invalide");
       setResult(parsed);
-      const entry={date:new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),result:parsed};
+      // Save first photo (data URL) alongside the listing for vitrine display
+      const firstPhoto=images.length>0?images[0].url:"";
+      const entry={date:new Date().toLocaleDateString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}),result:parsed,photo:firstPhoto};
       const saved=await db.addListing(session.user.id,entry,session.access_token);
       setHistory(prev=>[{...entry,id:saved?.id||Date.now().toString()},...prev].slice(0,50));
       setStep(3);
@@ -896,9 +898,9 @@ function TabStock({dark,session,stock,setStock,history}){
   const updateStatut=async(id,statut)=>{await db.updStock(session.user.id,id,{statut},session.access_token);setStock(prev=>prev.map(s=>s.id===id?{...s,statut}:s));};
   const deleteArticle=async(id)=>{await db.delStock(session.user.id,id,session.access_token);setStock(prev=>prev.filter(s=>s.id!==id));};
   const importFromHistory=async h=>{
-    const a={titre:h.result.titre,marque:h.result.marque,taille:h.result.taille,prix:h.result.prix_recommande,plateforme:"Vinted",etat:h.result.etat,notes:"",statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR")};
+    const a={titre:h.result.titre,marque:h.result.marque,taille:h.result.taille,prix:h.result.prix_recommande,plateforme:"Vinted",etat:h.result.etat,notes:"",statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR"),photo:h.photo||""};
     const saved=await db.addStock(session.user.id,a,session.access_token);
-    if(saved?.id)setStock(prev=>[{...a,id:saved.id},...prev]);
+    if(saved?.id)setStock(prev=>[{...a,id:saved.id,photo:h.photo||""},...prev]);
   };
 
   return <div>
@@ -1701,11 +1703,11 @@ export default function App(){
         </div>
 
         {/* ── VITRINE STOCK ──────────────────────────────────── */}
-        {stock.length>0&&<div style={{marginBottom:20}}>
+        {(stock.length>0||history.some(h=>h.photo))&&<div style={{marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>🛍️ Ma vitrine</div>
-              <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {stock.filter(s=>s.statut==="vendu").length} vendu(s)</div>
+              <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {history.filter(h=>h.photo).length} annonce(s) avec photo</div>
             </div>
             <button onClick={()=>openTab("stock")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>Voir tout →</button>
           </div>
@@ -1722,7 +1724,7 @@ export default function App(){
 
           {/* Scroll horizontal */}
           <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:8,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
-            <style>{`.vitrine-scroll::-webkit-scrollbar{display:none}`}</style>
+            {/* Articles du stock */}
             {stock.map((s,i)=>{
               const ETAT_COLORS={"Neuf avec étiquette":"#34c759","Neuf sans étiquette":"#30d158","Très bon état":"#007aff","Bon état":"#ff9500","Satisfaisant":"#ff3b30"};
               const etatColor=ETAT_COLORS[s.etat]||"#8e8e93";
@@ -1734,26 +1736,21 @@ export default function App(){
                   border:`1px solid ${dark?"#3a3a3c":"#e5e5ea"}`,
                   boxShadow:"0 2px 12px rgba(0,0,0,0.08)",
                   opacity:isVendu?0.6:1,
-                  transition:"transform 0.15s",
                 }}>
-                  {/* Photo ou placeholder */}
                   <div style={{position:"relative",height:110,background:dark?"#2c2c2e":"#f2f2f7",overflow:"hidden"}}>
                     {s.photo
                       ?<img src={s.photo} alt={s.titre} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:4}}>
                         <div style={{fontSize:28}}>👕</div>
                         <div style={{fontSize:9,color:dark?"#636366":"#aeaeb2",fontWeight:600}}>Pas de photo</div>
-                       </div>
+                      </div>
                     }
-                    {/* Badge statut */}
                     <div style={{position:"absolute",top:6,left:6,padding:"2px 7px",borderRadius:20,fontSize:9,fontWeight:800,
-                      background:isVendu?"#ff3b30":s.statut==="reserve"?"#ff9500":"#34c759",color:"white",letterSpacing:"0.3px"}}>
+                      background:isVendu?"#ff3b30":s.statut==="reserve"?"#ff9500":"#34c759",color:"white"}}>
                       {isVendu?"VENDU":s.statut==="reserve"?"RÉSERVÉ":"EN VENTE"}
                     </div>
-                    {/* Badge étatcolor */}
-                    <div style={{position:"absolute",top:6,right:6,width:8,height:8,borderRadius:"50%",background:etatColor,boxShadow:`0 0 0 2px white`}}/>
+                    <div style={{position:"absolute",top:6,right:6,width:8,height:8,borderRadius:"50%",background:etatColor,boxShadow:"0 0 0 2px white"}}/>
                   </div>
-                  {/* Infos */}
                   <div style={{padding:"8px 10px"}}>
                     <div style={{fontSize:11,fontWeight:700,color:dark?"#f5f5f7":"#1d1d1f",lineHeight:1.3,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.titre||"Article"}</div>
                     <div style={{fontSize:10,color:dark?"#aeaeb2":"#6e6e73",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.marque}{s.taille?" · "+s.taille:""}</div>
@@ -1763,21 +1760,43 @@ export default function App(){
               );
             })}
 
-            {/* Carte + Ajouter */}
-            <div onClick={()=>openTab("stock")} style={{
+            {/* Annonces générées avec photo (depuis l'onglet Annonce) */}
+            {history.filter(h=>h.photo).map((h,i)=>(
+              <div key={"h"+i} onClick={()=>openTab("historique")} style={{
+                flexShrink:0,width:130,borderRadius:16,overflow:"hidden",cursor:"pointer",
+                background:dark?"#1c1c1e":"#ffffff",
+                border:`1px solid ${GOLD}40`,
+                boxShadow:`0 2px 12px ${GOLD}20`,
+              }}>
+                <div style={{position:"relative",height:110,background:dark?"#2c2c2e":"#f2f2f7",overflow:"hidden"}}>
+                  <img src={h.photo} alt={h.result?.titre} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  <div style={{position:"absolute",top:6,left:6,padding:"2px 7px",borderRadius:20,fontSize:9,fontWeight:800,background:GOLD,color:"white"}}>
+                    ANNONCE
+                  </div>
+                </div>
+                <div style={{padding:"8px 10px"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:dark?"#f5f5f7":"#1d1d1f",lineHeight:1.3,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.result?.titre||"Annonce"}</div>
+                  <div style={{fontSize:10,color:dark?"#aeaeb2":"#6e6e73",marginBottom:4}}>{h.date}</div>
+                  <div style={{fontSize:13,fontWeight:900,color:GOLD}}>{h.result?.prix_recommande?h.result.prix_recommande+"€":"—"}</div>
+                </div>
+              </div>
+            ))}
+
+            {/* Carte + Nouvelle annonce */}
+            <div onClick={()=>openTab("annonce")} style={{
               flexShrink:0,width:130,borderRadius:16,cursor:"pointer",
               background:"transparent",border:`2px dashed ${GOLD}50`,
               display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-              gap:6,minHeight:170,transition:"all 0.15s",
+              gap:6,minHeight:170,
             }}>
-              <div style={{width:36,height:36,borderRadius:"50%",background:`${GOLD}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:GOLD}}>+</div>
-              <div style={{fontSize:11,fontWeight:700,color:GOLD,textAlign:"center",lineHeight:1.3}}>Ajouter un article</div>
+              <div style={{width:36,height:36,borderRadius:"50%",background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"white"}}>⚡</div>
+              <div style={{fontSize:11,fontWeight:700,color:GOLD,textAlign:"center",lineHeight:1.3,padding:"0 8px"}}>Nouvelle annonce</div>
             </div>
           </div>
         </div>}
 
-        {/* Si stock vide : appel à l'action */}
-        {stock.length===0&&<div onClick={()=>openTab("stock")} style={{
+        {/* Si stock ET historique photo vides */}
+        {stock.length===0&&!history.some(h=>h.photo)&&<div onClick={()=>openTab("annonce")} style={{
           marginBottom:20,borderRadius:16,border:`2px dashed ${GOLD}40`,
           padding:"16px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,
           background:dark?`${GOLD}08`:`${GOLD}06`,
