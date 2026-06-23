@@ -494,7 +494,7 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
 }
 
 // ── TAB TENDANCES ─────────────────────────────────────────────────────────────
-function TabTendances({dark}){
+function TabTendances({dark,userPlan,setShowPricingModal}){
   const [query,setQuery]=useState("");
   const [loading,setLoading]=useState(false);
   const [result,setResult]=useState(null);
@@ -649,7 +649,16 @@ Reponds UNIQUEMENT avec cet objet JSON sans markdown:
       <Card dark={dark}>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
           <Inp value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&analyse()} placeholder="Ex: Nike Air Max, Jean Levi's..." dark={dark}/>
-          <Btn onClick={()=>analyse()} disabled={loading||!query.trim()} small>Go</Btn>
+          {(()=>{
+      const lim=LIMITS[userPlan||"free"];
+      const key="tend_"+new Date().toISOString().slice(0,7);
+      const used=parseInt(sessionStorage.getItem(key)||"0");
+      if(used>=lim.tendances) return <div style={{borderRadius:10,background:"#ff3b3010",border:"1px solid #ff3b3040",padding:"10px",textAlign:"center",marginTop:4}}>
+        <div style={{fontSize:12,fontWeight:800,color:"#ff3b30"}}>🚫 {used}/{lim.tendances} analyses ce mois</div>
+        <button onClick={()=>setShowPricingModal(true)} style={{marginTop:6,padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>💎 Upgrade</button>
+      </div>;
+      return <Btn onClick={()=>{sessionStorage.setItem(key,String(used+1));analyse();}} disabled={loading||!query.trim()} small>Go ({used}/{lim.tendances===999?"∞":lim.tendances})</Btn>;
+    })()}
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
           {SUGG.map(s=><button key={s} onClick={()=>{setQuery(s);analyse(s);}} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}30`,background:`${GOLD}10`,color:GOLD,fontSize:11,fontWeight:600,cursor:"pointer"}}>{s}</button>)}
@@ -831,7 +840,7 @@ function TabMarge({dark}){
 }
 
 // ── TAB AGENT ─────────────────────────────────────────────────────────────────
-function TabAgent({dark,session,history,stock}){
+function TabAgent({dark,session,history,stock,userPlan,setShowPricingModal}){
   const [subTab,setSubTab]=useState("favoris");
   const [msgTemplate,setMsgTemplate]=useState("Bonjour ! 😊 Je vois que vous avez mis mon article en favori — je peux faire un geste sur le prix si vous êtes intéressé·e !");
   const [msgL,setMsgL]=useState(false);
@@ -862,7 +871,13 @@ function TabAgent({dark,session,history,stock}){
       <Card dark={dark}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <Label dark={dark} style={{marginBottom:0}}>Message template</Label>
-          <Btn onClick={genMsg} disabled={msgL} variant="outline" small>{msgL?"...":"✦ Générer"}</Btn>
+          {(()=>{
+      const lim=LIMITS[userPlan||"free"];
+      const key="agent_"+new Date().toISOString().slice(0,10);
+      const used=parseInt(sessionStorage.getItem(key)||"0");
+      if(used>=lim.agent) return <button onClick={()=>setShowPricingModal(true)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:"#ff3b30",color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>🚫 {used}/{lim.agent} — Upgrade</button>;
+      return <Btn onClick={()=>{sessionStorage.setItem(key,String(used+1));genMsg();}} disabled={msgL} variant="outline" small>{msgL?"...":"✦ Générer"}</Btn>;
+    })()}
         </div>
         <Txta value={msgTemplate} onChange={e=>setMsgTemplate(e.target.value)} dark={dark} rows={3}/>
       </Card>
@@ -1182,7 +1197,7 @@ function ReponseCard({r,dark}){
 }
 
 // ── TAB RÉPONSES ──────────────────────────────────────────────────────────────
-function TabReponses({dark}){
+function TabReponses({dark,userPlan,setShowPricingModal}){
   const QUESTIONS=["Toujours disponible ?","Dernière baisse de prix ?","Défauts / imperfections ?","Échange possible ?","Délai d'envoi ?","Taille dans le vrai ?","Autre question"];
   const [question,setQuestion]=useState(QUESTIONS[0]);
   const [customQ,setCustomQ]=useState("");
@@ -1209,7 +1224,17 @@ function TabReponses({dark}){
       {question==="Autre question"&&<div style={{marginTop:10}}><Inp value={customQ} onChange={e=>setCustomQ(e.target.value)} placeholder="Tape la question..." dark={dark}/></div>}
     </Card>
     <Card dark={dark}><Label dark={dark}>Ton</Label><div style={{display:"flex",gap:8}}>{[["sympa","😊 Sympa"],["pro","💼 Pro"],["court","⚡ Court"]].map(([k,l])=><button key={k} onClick={()=>setTon(k)} style={{flex:1,padding:"9px",borderRadius:10,border:`1.5px solid ${ton===k?GOLD:T.border(dark)}`,background:ton===k?`${GOLD}15`:"transparent",color:ton===k?GOLD:T.text2(dark),fontSize:12,fontWeight:700,cursor:"pointer"}}>{l}</button>)}</div></Card>
-    <Btn onClick={generate} disabled={loading||(question==="Autre question"&&!customQ.trim())} full>{loading?"Génération...":"✦ Générer 3 réponses"}</Btn>
+    {(()=>{
+      const lim=LIMITS[userPlan||"free"];
+      const key="rep_"+new Date().toISOString().slice(0,7);
+      const used=parseInt(sessionStorage.getItem(key)||"0");
+      if(used>=lim.reponses) return <div style={{borderRadius:10,background:"#ff3b3010",border:"1px solid #ff3b3040",padding:"10px",textAlign:"center"}}>
+        <div style={{fontSize:12,fontWeight:800,color:"#ff3b30"}}>🚫 {used}/{lim.reponses} réponses ce mois</div>
+        <button onClick={()=>setShowPricingModal(true)} style={{marginTop:6,padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>💎 Upgrade</button>
+      </div>;
+      const go=()=>{sessionStorage.setItem(key,String(used+1));generate();};
+      return <Btn onClick={go} disabled={loading||(question==="Autre question"&&!customQ.trim())} full>{loading?"Génération...":"✦ Générer 3 réponses"}</Btn>;
+    })()}
     {loading&&<Spin/>}
     {reponses&&!loading&&<div style={{marginTop:12}}>
       {reponses.reponses?.map((r,i)=><ReponseCard key={i} r={r} dark={dark}/>)}
@@ -1218,7 +1243,7 @@ function TabReponses({dark}){
 }
 
 // ── TAB RÉ-OPT ───────────────────────────────────────────────────────────────
-function TabReopt({dark}){
+function TabReopt({dark,userPlan,setShowPricingModal}){
   const [ancienTitre,setAncienTitre]=useState("");
   const [ancienneDesc,setAncienneDesc]=useState("");
   const [raison,setRaison]=useState("ne_vend_pas");
@@ -1240,7 +1265,16 @@ function TabReopt({dark}){
     </div>)}</div></Card>
     <Card dark={dark}><Label dark={dark}>Titre actuel (optionnel)</Label><Inp value={ancienTitre} onChange={e=>setAncienTitre(e.target.value)} placeholder="Ton titre..." dark={dark}/></Card>
     <Card dark={dark}><Label dark={dark}>Description actuelle *</Label><Txta value={ancienneDesc} onChange={e=>setAncienneDesc(e.target.value)} placeholder="Colle ta description..." dark={dark} rows={5}/></Card>
-    <Btn onClick={optimise} disabled={loading||!ancienneDesc.trim()} full>{loading?"Ré-optimisation...":"✦ Ré-optimiser"}</Btn>
+    {(()=>{
+      const lim=LIMITS[userPlan||"free"];
+      const key="reopt_"+new Date().toISOString().slice(0,7);
+      const used=parseInt(sessionStorage.getItem(key)||"0");
+      if(used>=lim.reopt) return <div style={{borderRadius:10,background:"#ff3b3010",border:"1px solid #ff3b3040",padding:"10px",textAlign:"center"}}>
+        <div style={{fontSize:12,fontWeight:800,color:"#ff3b30"}}>🚫 {used}/{lim.reopt} ré-opt. ce mois</div>
+        <button onClick={()=>setShowPricingModal(true)} style={{marginTop:6,padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>💎 Upgrade</button>
+      </div>;
+      return <Btn onClick={()=>{sessionStorage.setItem(key,String(used+1));optimise();}} disabled={loading||!ancienneDesc.trim()} full>{loading?"Ré-optimisation...":"✦ Ré-optimiser ("+used+"/"+(lim.reopt===999?"∞":lim.reopt)+")"}</Btn>;
+    })()}
     {loading&&<Spin/>}
     {result&&!loading&&<div style={{marginTop:12}}>
       <Card dark={dark} style={{background:`${GOLD}10`,border:`1px solid ${GOLD}30`}}>
@@ -2078,14 +2112,15 @@ export default function App(){
 
   if(!session)return <AuthScreen onAuth={handleAuth} dark={dark}/>;
 
+  const UP={userPlan:userPlan||"free",setShowPricingModal:setShowPricingModal};
   const COMPONENTS={
-    annonce:<TabAnnonce dark={dark} session={session} history={history} setHistory={setHistory} resultToShow={resultToShow} setResultToShow={setResultToShow} userPlan={userPlan} setShowPricingModal={setShowPricingModal}/>,
-    tendances:<TabTendances dark={dark}/>,
+    annonce:<TabAnnonce dark={dark} session={session} history={history} setHistory={setHistory} resultToShow={resultToShow} setResultToShow={setResultToShow} {...UP}/>,
+    tendances:<TabTendances dark={dark} {...UP}/>,
     marge:<TabMarge dark={dark}/>,
-    agent:<TabAgent dark={dark} session={session} history={history} stock={stock}/>,
-    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}} userPlan={userPlan} setShowPricingModal={setShowPricingModal}/>,
-    reponses:<TabReponses dark={dark}/>,
-    reopt:<TabReopt dark={dark}/>,
+    agent:<TabAgent dark={dark} session={session} history={history} stock={stock} {...UP}/>,
+    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}} {...UP}/>,
+    reponses:<TabReponses dark={dark} {...UP}/>,
+    reopt:<TabReopt dark={dark} {...UP}/>,
     ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
