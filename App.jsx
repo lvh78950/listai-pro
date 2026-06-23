@@ -55,7 +55,7 @@ const supa = {
 };
 
 const db = {
-  async getListings(uid,tok){const d=await supa.select("listings",{user_id:uid},tok);return Array.isArray(d)?d:[];},
+  async getListings(uid,tok){const d=await supa.select("listings",{user_id:uid},tok);return Array.isArray(d)?d.map(e=>({...e,photo:e.photo||""})):[];},
   async addListing(uid,e,tok){
     return supa.insert("listings",{user_id:uid,date:e.date,result:e.result,photo:e.photo||""},tok);
   },
@@ -1770,7 +1770,7 @@ export default function App(){
     }
     try{
       const [h,s,v]=await Promise.all([db.getListings(sess.user.id,sess.access_token),db.getStock(sess.user.id,sess.access_token),db.getVentes(sess.user.id,sess.access_token)]);
-      setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result})));
+      setHistory(h.map(x=>({id:x.id,date:x.date,result:x.result,photo:x.photo||""})));
       setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));
       setVentes(v);
     }catch{}
