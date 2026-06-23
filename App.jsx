@@ -63,11 +63,21 @@ const db = {
   async clearListings(uid,tok){return supa.deleteWhere("listings","user_id",uid,tok);},
   async getUserPlan(uid,tok){
     try{
-      const url=`${SUPA_URL}/rest/v1/user_plans?user_id=eq.${uid}&select=plan`;
-      const res=await fetch(url,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok}`,"Content-Type":"application/json"}});
-      if(!res.ok) return "free";
-      const data=await res.json();
-      if(Array.isArray(data)&&data.length>0) return data[0].plan||"free";
+      // Read plan from preferences table (already RLS-configured and working)
+      const prefs=await db.getPrefs(uid,tok);
+      if(prefs&&prefs.plan) return prefs.plan;
+      // Fallback: try user_plans table
+      const url=`${SUPA_URL}/rest/v1/user_plans?user_id=eq.${encodeURIComponent(uid)}&select=plan`;
+      const res=await fetch(url,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok}`,"Content-Type":"application/json","Accept":"application/json"}});
+      if(res.ok){
+        const data=await res.json();
+        if(Array.isArray(data)&&data.length>0){
+          const plan=data[0].plan||"free";
+          // Cache in preferences for next time
+          await db.savePrefs(uid,{plan},tok);
+          return plan;
+        }
+      }
       return "free";
     }catch(e){console.error("getUserPlan error:",e);return "free";}
   },
