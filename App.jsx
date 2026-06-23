@@ -2077,11 +2077,67 @@ export default function App(){
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {!homeView&&<span style={{fontSize:10,color:T.text2(dark),maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.user.email}</span>}
+          <button onClick={()=>setShowPricingModal(true)} title="Abonnements" style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${GOLD}60`,background:`${GOLD}15`,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>💎</button>
           <button onClick={()=>setShowTuto(true)} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>❓</button>
           <button onClick={handleToggleDark} style={{width:30,height:30,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{dark?"☀️":"🌙"}</button>
           {homeView&&<button onClick={signOut} style={{padding:"5px 10px",borderRadius:20,border:"1px solid rgba(255,59,48,0.3)",background:"transparent",color:"#ff3b30",fontSize:11,fontWeight:700,cursor:"pointer"}}>Déco.</button>}
         </div>
       </nav>
+
+      {/* PRICING MODAL */}
+      {showPricingModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:9997,display:"flex",alignItems:"flex-end",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setShowPricingModal(false)}>
+        <div style={{background:T.card(dark),borderRadius:"24px 24px 0 0",width:"100%",maxWidth:480,maxHeight:"90vh",overflow:"auto",padding:"0 0 24px"}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:"flex",justifyContent:"center",padding:"12px 0 4px"}}>
+            <div style={{width:40,height:4,borderRadius:2,background:T.border(dark)}}/>
+          </div>
+          <div style={{padding:"8px 20px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:18,fontWeight:900,color:T.text(dark)}}>💎 Nos abonnements</div>
+              <div style={{fontSize:12,color:T.text2(dark)}}>Choisis ce qui correspond à ta boutique</div>
+            </div>
+            <button onClick={()=>setShowPricingModal(false)} style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:18,cursor:"pointer"}}>×</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,padding:"0 16px 16px"}}>
+            {Object.entries(PLANS).map(([planId,plan])=>{
+              const isCur=userPlan===planId;
+              const isPopular=planId==="pro";
+              return(
+                <div key={planId} style={{borderRadius:16,overflow:"hidden",border:`2px solid ${isCur?plan.color:isPopular?plan.color+"60":T.border(dark)}`}}>
+                  {isPopular&&<div style={{background:plan.grad,height:3}}/>}
+                  <div style={{background:plan.grad,padding:"12px 8px",textAlign:"center"}}>
+                    <div style={{fontSize:22,marginBottom:4}}>{plan.icon}</div>
+                    <div style={{fontSize:13,fontWeight:900,color:"white"}}>{plan.name}</div>
+                    <div style={{fontSize:16,fontWeight:900,color:"white",marginTop:4}}>{plan.price===0?"Gratuit":`${plan.price}€`}</div>
+                    {plan.price>0&&<div style={{fontSize:9,color:"rgba(255,255,255,0.75)"}}>/mois</div>}
+                  </div>
+                  <div style={{padding:"8px",background:T.card(dark)}}>
+                    {PLAN_FEATURES[planId].slice(0,5).map((f,i)=>(
+                      <div key={i} style={{display:"flex",gap:4,alignItems:"flex-start",marginBottom:4}}>
+                        <span style={{fontSize:10,color:f.ok?"#34c759":"#ff3b3060",flexShrink:0,marginTop:1}}>{f.ok?"✓":"✗"}</span>
+                        <span style={{fontSize:9,color:f.ok?T.text(dark):T.text3(dark),lineHeight:1.4}}>{f.label}</span>
+                      </div>
+                    ))}
+                    {plan.price>0&&!isCur
+                      ?<button onClick={()=>{setShowPricingModal(false);setTab("pricing");setHomeView(false);}} style={{width:"100%",marginTop:8,padding:"7px 4px",borderRadius:8,border:"none",background:plan.grad,color:"white",fontSize:10,fontWeight:800,cursor:"pointer"}}>Voir détails</button>
+                      :isCur
+                        ?<div style={{marginTop:8,padding:"6px",borderRadius:8,background:"#34c75920",textAlign:"center",fontSize:10,fontWeight:700,color:"#34c759"}}>✓ Actuel</div>
+                        :<div style={{marginTop:8,padding:"6px",borderRadius:8,background:T.card2(dark),textAlign:"center",fontSize:10,color:T.text3(dark)}}>Plan de base</div>
+                    }
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{padding:"0 16px"}}>
+            <button onClick={()=>{setShowPricingModal(false);setTab("pricing");setHomeView(false);}} style={{width:"100%",padding:"14px",borderRadius:14,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer",boxShadow:`0 6px 20px ${GOLD}40`}}>
+              💎 Voir tous les détails et souscrire
+            </button>
+            <button onClick={()=>setShowPricingModal(false)} style={{width:"100%",padding:"12px",borderRadius:14,border:"none",background:"transparent",color:T.text2(dark),fontSize:13,fontWeight:600,cursor:"pointer",marginTop:6}}>
+              Continuer avec le plan Gratuit
+            </button>
+          </div>
+        </div>
+      </div>}
 
       {/* HOME DASHBOARD */}
       {homeView&&<div style={{maxWidth:640,margin:"0 auto",padding:"20px 14px 40px"}}>
