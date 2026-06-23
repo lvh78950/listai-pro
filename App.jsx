@@ -12,7 +12,7 @@ const SHIP = [{l:"Lettre suivie",p:2.99},{l:"Colissimo S",p:3.99},{l:"Colissimo 
 const ETAT = ["Neuf avec étiquette","Neuf sans étiquette","Très bon état","Bon état","Satisfaisant"];
 const ETAT_C = ["#34c759","#30d158","#007aff","#ff9500","#ff3b30"];
 const PLATFORMS = ["Vinted","Leboncoin","eBay","Depop","Vestiaire"];
-const TABS = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"}];
+const TABS = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"pricing",icon:"💎",label:"Plans"}];
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const supa = {
@@ -1722,6 +1722,247 @@ function TabPDF({dark}){
 }
 
 
+
+// ── PLANS & LIMITES ───────────────────────────────────────────────────────────
+const PLANS = {
+  free:   {id:"free",   name:"Gratuit",  price:0,    color:"#8e8e93", grad:"linear-gradient(135deg,#8e8e93,#636366)", icon:"🆓"},
+  pro:    {id:"pro",    name:"Pro",      price:4.99, color:"#7C3AED", grad:"linear-gradient(135deg,#7C3AED,#2563EB)", icon:"⚡"},
+  expert: {id:"expert", name:"Expert",   price:9.99, color:"#FF6B2B", grad:"linear-gradient(135deg,#FF6B2B,#FF9500)", icon:"👑"},
+};
+
+const LIMITS = {
+  free:   {annonces:10,  stock:20,  agent:3,   tendances:3,   reponses:5,  reopt:3,  pdf:false, repost:false, export:false, ebook:false, discord:false},
+  pro:    {annonces:50,  stock:100, agent:20,  tendances:20,  reponses:30, reopt:20, pdf:true,  repost:true,  export:true,  ebook:false, discord:false},
+  expert: {annonces:999, stock:999, agent:999, tendances:999, reponses:999,reopt:999,pdf:true,  repost:true,  export:true,  ebook:true,  discord:true},
+};
+
+const PLAN_FEATURES = {
+  free:[
+    {ok:true,  label:"10 annonces IA / mois"},
+    {ok:true,  label:"20 articles en stock"},
+    {ok:true,  label:"3 questions Agent IA / jour"},
+    {ok:true,  label:"3 analyses Tendances / jour"},
+    {ok:true,  label:"5 réponses auto / jour"},
+    {ok:false, label:"PDF templates marques"},
+    {ok:false, label:"Repost en 1 clic"},
+    {ok:false, label:"Export stats"},
+    {ok:false, label:"Ebook stratégie vente"},
+    {ok:false, label:"Communauté Discord"},
+  ],
+  pro:[
+    {ok:true,  label:"50 annonces IA / mois"},
+    {ok:true,  label:"100 articles en stock"},
+    {ok:true,  label:"20 questions Agent IA / jour"},
+    {ok:true,  label:"20 analyses Tendances / jour"},
+    {ok:true,  label:"30 réponses auto / jour"},
+    {ok:true,  label:"PDF templates marques"},
+    {ok:true,  label:"Repost en 1 clic"},
+    {ok:true,  label:"Export stats"},
+    {ok:false, label:"Ebook stratégie vente"},
+    {ok:false, label:"Communauté Discord"},
+  ],
+  expert:[
+    {ok:true,  label:"Annonces IA illimitées"},
+    {ok:true,  label:"Stock illimité"},
+    {ok:true,  label:"Agent IA toutes fonctions"},
+    {ok:true,  label:"Tendances illimitées"},
+    {ok:true,  label:"Réponses auto illimitées"},
+    {ok:true,  label:"PDF templates marques"},
+    {ok:true,  label:"Repost en 1 clic"},
+    {ok:true,  label:"Export stats"},
+    {ok:true,  label:"📖 Ebook stratégie vente"},
+    {ok:true,  label:"💬 Communauté Discord (bientôt)"},
+  ],
+};
+
+// Stripe & PayPal links (à remplacer par tes vrais liens)
+const PAYMENT_LINKS = {
+  pro: {
+    stripe: "https://buy.stripe.com/YOUR_PRO_LINK",
+    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_PRO_PLAN",
+  },
+  expert: {
+    stripe: "https://buy.stripe.com/YOUR_EXPERT_LINK",
+    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_EXPERT_PLAN",
+  },
+};
+
+
+
+// ── LIMIT CHECKER ─────────────────────────────────────────────────────────────
+function useLimitCheck(userPlan, history, stock){
+  const limits=LIMITS[userPlan]||LIMITS.free;
+  const now=new Date();
+  const thisMonth=`${now.getMonth()}-${now.getFullYear()}`;
+  const annoncesThisMonth=history.filter(h=>{
+    try{const d=new Date(h.date);return `${d.getMonth()}-${d.getFullYear()}`===thisMonth;}catch{return false;}
+  }).length;
+  return {
+    canAddAnnonce: annoncesThisMonth < limits.annonces,
+    canAddStock: stock.length < limits.stock,
+    annoncesLeft: Math.max(0, limits.annonces - annoncesThisMonth),
+    stockLeft: Math.max(0, limits.stock - stock.length),
+    limits,
+  };
+}
+
+// ── TAB PRICING ───────────────────────────────────────────────────────────────
+function TabPricing({dark, userPlan="free", session}){
+  const [selectedPayment,setSelectedPayment]=useState(null); // {plan, method}
+  const [annual,setAnnual]=useState(false);
+
+  const currentPlan=userPlan||"free";
+
+  const handleSubscribe=(planId,method)=>{
+    const link=PAYMENT_LINKS[planId]?.[method];
+    if(link&&!link.includes("YOUR_")) window.open(link,"_blank");
+    else setSelectedPayment({planId,method});
+  };
+
+  return <div>
+    <Title dark={dark} sub="Choisis le plan adapté à ta boutique">💎 Abonnements</Title>
+
+    {/* Badge plan actuel */}
+    <div style={{
+      background:PLANS[currentPlan].grad,
+      borderRadius:14,padding:"12px 16px",marginBottom:16,
+      display:"flex",alignItems:"center",gap:10,
+      boxShadow:`0 4px 16px ${PLANS[currentPlan].color}40`
+    }}>
+      <span style={{fontSize:22}}>{PLANS[currentPlan].icon}</span>
+      <div>
+        <div style={{fontSize:13,fontWeight:800,color:"white"}}>Ton plan actuel : {PLANS[currentPlan].name}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
+          {currentPlan==="free"?"Passe à Pro ou Expert pour débloquer plus de fonctionnalités":"Merci pour ton abonnement ! 🙏"}
+        </div>
+      </div>
+    </div>
+
+    {/* Toggle annuel */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+      <span style={{fontSize:12,color:T.text2(dark),fontWeight:600}}>Mensuel</span>
+      <div onClick={()=>setAnnual(!annual)} style={{
+        width:44,height:24,borderRadius:12,cursor:"pointer",position:"relative",
+        background:annual?GOLD:T.border(dark),transition:"background 0.2s"
+      }}>
+        <div style={{position:"absolute",top:2,left:annual?22:2,width:20,height:20,borderRadius:"50%",background:"white",transition:"left 0.2s",boxShadow:"0 2px 4px rgba(0,0,0,0.2)"}}/>
+      </div>
+      <span style={{fontSize:12,color:T.text2(dark),fontWeight:600}}>Annuel</span>
+      <span style={{fontSize:10,fontWeight:800,color:"#34c759",background:"#34c75920",padding:"2px 8px",borderRadius:20}}>-20%</span>
+    </div>
+
+    {/* Cards plans */}
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
+      {Object.entries(PLANS).map(([planId,plan])=>{
+        const isCurrentPlan=currentPlan===planId;
+        const isPopular=planId==="pro";
+        const price=annual&&plan.price>0?(plan.price*0.8*12).toFixed(2):plan.price;
+        const priceLabel=annual&&plan.price>0?"/an":"/mois";
+        const features=PLAN_FEATURES[planId];
+        return(
+          <div key={planId} style={{
+            borderRadius:20,overflow:"hidden",
+            border:`2px solid ${isCurrentPlan?plan.color:isPopular?plan.color+"60":T.border(dark)}`,
+            background:T.card(dark),
+            boxShadow:isPopular?`0 8px 32px ${plan.color}30`:"none",
+            position:"relative",
+          }}>
+            {isPopular&&<div style={{position:"absolute",top:12,right:12,background:plan.grad,color:"white",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20,letterSpacing:"0.5px"}}>⭐ POPULAIRE</div>}
+            {isCurrentPlan&&<div style={{position:"absolute",top:12,right:12,background:"#34c759",color:"white",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:20}}>✓ ACTUEL</div>}
+
+            {/* Header */}
+            <div style={{background:plan.grad,padding:"20px 20px 16px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <span style={{fontSize:24}}>{plan.icon}</span>
+                <span style={{fontSize:18,fontWeight:900,color:"white"}}>{plan.name}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+                <span style={{fontSize:32,fontWeight:900,color:"white"}}>{plan.price===0?"Gratuit":`${price}€`}</span>
+                {plan.price>0&&<span style={{fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>{priceLabel}</span>}
+              </div>
+              {annual&&plan.price>0&&<div style={{fontSize:10,color:"rgba(255,255,255,0.7)",marginTop:4}}>soit {plan.price*0.8}€/mois · 2 mois offerts</div>}
+            </div>
+
+            {/* Features */}
+            <div style={{padding:"14px 18px"}}>
+              {features.map((f,i)=>(
+                <div key={i} style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+                  <span style={{fontSize:14,flexShrink:0,color:f.ok?"#34c759":"#ff3b30"}}>{f.ok?"✓":"✗"}</span>
+                  <span style={{fontSize:12,color:f.ok?T.text(dark):T.text3(dark),fontWeight:f.ok?500:400}}>{f.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            {!isCurrentPlan&&plan.price>0&&<div style={{padding:"0 16px 16px",display:"flex",gap:8}}>
+              <button onClick={()=>handleSubscribe(planId,"stripe")} style={{
+                flex:1,padding:"11px",borderRadius:12,border:"none",
+                background:plan.grad,color:"white",fontSize:13,fontWeight:800,
+                cursor:"pointer",boxShadow:`0 4px 14px ${plan.color}40`,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+              }}>
+                💳 Stripe
+              </button>
+              <button onClick={()=>handleSubscribe(planId,"paypal")} style={{
+                flex:1,padding:"11px",borderRadius:12,border:`2px solid #0070ba`,
+                background:"#0070ba",color:"white",fontSize:13,fontWeight:800,
+                cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+              }}>
+                🅿️ PayPal
+              </button>
+            </div>}
+            {isCurrentPlan&&plan.price>0&&<div style={{padding:"0 16px 16px"}}>
+              <button style={{width:"100%",padding:"11px",borderRadius:12,border:`2px solid ${plan.color}`,background:"transparent",color:plan.color,fontSize:13,fontWeight:800,cursor:"default"}}>
+                ✓ Abonnement actif
+              </button>
+            </div>}
+            {plan.price===0&&!isCurrentPlan&&<div style={{padding:"0 16px 16px"}}>
+              <button style={{width:"100%",padding:"11px",borderRadius:12,border:`2px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:13,fontWeight:700,cursor:"default"}}>
+                Plan actuel
+              </button>
+            </div>}
+          </div>
+        );
+      })}
+    </div>
+
+    {/* FAQ */}
+    <Card dark={dark}>
+      <Label dark={dark}>❓ Questions fréquentes</Label>
+      {[
+        ["Puis-je annuler à tout moment ?","Oui, sans engagement. L'abonnement reste actif jusqu'à la fin de la période payée."],
+        ["Comment fonctionne le paiement ?","Stripe (carte bancaire) ou PayPal. Renouvellement automatique mensuel ou annuel."],
+        ["Qu'est-ce que l'Ebook Expert ?","Un guide complet de stratégie de revente : pricing, photos, timing, négociation. Livré par email."],
+        ["Le Discord est-il disponible ?","Il arrive très bientôt ! Les membres Expert seront les premiers invités."],
+      ].map(([q,a],i)=>(
+        <div key={i} style={{marginBottom:i<3?12:0,paddingBottom:i<3?12:0,borderBottom:i<3?`1px solid ${T.border(dark)}`:"none"}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.text(dark),marginBottom:4}}>{q}</div>
+          <div style={{fontSize:11,color:T.text2(dark),lineHeight:1.6}}>{a}</div>
+        </div>
+      ))}
+    </Card>
+
+    {/* Modal paiement - lien pas encore configuré */}
+    {selectedPayment&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(6px)"}}
+      onClick={()=>setSelectedPayment(null)}>
+      <div style={{background:T.card(dark),borderRadius:20,padding:24,maxWidth:340,width:"100%"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:18,fontWeight:900,color:T.text(dark),marginBottom:8}}>🔗 Lien de paiement</div>
+        <div style={{fontSize:13,color:T.text2(dark),marginBottom:16,lineHeight:1.6}}>
+          Configure ton lien {selectedPayment.method==="stripe"?"Stripe":"PayPal"} dans le code pour activer le paiement {PLANS[selectedPayment.planId].name}.
+        </div>
+        <div style={{background:T.card2(dark),borderRadius:10,padding:12,marginBottom:16}}>
+          <div style={{fontSize:11,color:T.text3(dark),marginBottom:4,fontWeight:600}}>Variable à modifier dans App.jsx :</div>
+          <div style={{fontSize:11,fontFamily:"monospace",color:GOLD}}>PAYMENT_LINKS.{selectedPayment.planId}.{selectedPayment.method}</div>
+        </div>
+        <button onClick={()=>setSelectedPayment(null)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer"}}>
+          OK, compris
+        </button>
+      </div>
+    </div>}
+  </div>;
+}
+
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
 export default function App(){
   const [dark,toggleDark]=useTheme();
@@ -1729,6 +1970,7 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [tab,setTab]=useState("annonce");
   const [history,setHistory]=useState([]);
+  const [userPlan,setUserPlan]=useState("free"); // "free" | "pro" | "expert"
   const [stock,setStock]=useState([]);
   const [ventes,setVentes]=useState([]);
   const [resultToShow,setResultToShow]=useState(null);
@@ -1805,6 +2047,7 @@ export default function App(){
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
     pdf:<TabPDF dark={dark}/>,
+    pricing:<TabPricing dark={dark} userPlan={userPlan} session={session}/>,
   };
 
   const openTab=(t)=>{setTab(t);setHomeView(false);};
@@ -1819,6 +2062,7 @@ export default function App(){
     {id:"reopt",icon:"🔄",label:"Ré-optimiseur",sub:"Relance une annonce qui stagne",grad:"linear-gradient(135deg,#F59E0B,#FF6B2B)",shadow:"rgba(245,158,11,0.4)"},
     {id:"ventes",icon:"📊",label:"Suivi des ventes",sub:`CA: ${ventes.reduce((s,v)=>s+(parseFloat(v.prix_vente)||0),0).toFixed(0)}€`,grad:"linear-gradient(135deg,#10B981,#059669)",shadow:"rgba(16,185,129,0.4)"},
     {id:"historique",icon:"🕓",label:"Historique",sub:`${history.length} annonce(s) générée(s)`,grad:"linear-gradient(135deg,#6366F1,#7C3AED)",shadow:"rgba(99,102,241,0.4)"},
+    {id:"pricing",icon:"💎",label:"Mes Abonnements",sub:"Gratuit · Pro · Expert",grad:"linear-gradient(135deg,#FF6B2B,#FF9500)",shadow:"rgba(255,107,43,0.4)"},
     {id:"pdf",icon:"📄",label:"Éditeur PDF",sub:"13 templates à télécharger",grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
     {id:"extension",icon:"🧩",label:"Extension Chrome",sub:"Installe & configure l'extension",grad:"linear-gradient(135deg,#FF6B2B,#7C3AED)",shadow:"rgba(124,58,237,0.4)"},
   ];
