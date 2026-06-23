@@ -289,11 +289,14 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
     setLoading(true);setError(null);
     const prompt=`Tu es un expert vendeur Vinted streetwear avec 5 ans d'experience. Analyse ces ${images.length} photo(s). Prix souhaite: ${prix?prix+"EUR":"a estimer"}, etat: ${ETAT[etat]}${infos?", infos: "+infos:""}.
 
-Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans emojis dans les cles ou valeurs simples.
-Format strict (titre en minuscules avec majuscule seulement au debut et pour les noms propres/marques):
-{"titre":"max 60 chars","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"description complete avec emojis et structure vendeuse sur plusieurs lignes","hashtags":"#Nike #AirMax #Streetwear #Sneakers #LimitedEdition #Hype","conseil":"un conseil pratique"}
+Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
+Format strict:
+{"titre":"max 60 chars accrocheur avec marque + modele + couleur","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"VOIR FORMAT CI-DESSOUS","hashtags":"#Tag1 #Tag2 #Tag3 ... (15-20 hashtags pertinents)","conseil":"un conseil pratique court"}
 
-Important: prix_recommande et prix_mini doivent etre des nombres SANS le symbole euro.`;
+FORMAT OBLIGATOIRE pour le champ description (respecte exactement les sauts de ligne avec \\n) :
+🔥 Description :\\nVends [description accrocheuse et vendeuse de l article en 2-3 phrases avec emojis, mentionne la collab si applicable, le style, la rarety].\\n\\n✅ [point etat 1]\\n✅ [point etat 2]\\n✅ [point etat 3]\\n✅ [point etat 4]\\n✅ Authentique, bien entretenu(e)\\n\\n📏 Taille : [taille EU / taille US si chaussure]\\n\\n💥 Envoi rapide, soigne et bien protege\\n[phrase sur le style et comment porter l article]\\n\\n————————————————\\n\\n[hashtags separes par des espaces]
+
+Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\n dans description = vrais sauts de ligne JSON.`;
     try{
       const text=await callClaude(prompt,images);
       const parsed=pj(text);
