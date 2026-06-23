@@ -1163,15 +1163,14 @@ ${hashtags}`.trim();
             ))}
 
             {/* Bouton REPOST */}
-            <button onClick={()=>handleRepost(art)} disabled={isReposting} style={{
-              padding:"5px 12px",borderRadius:8,border:"none",
-              background:isReposting?"#636366":GRAD,
-              color:"white",fontSize:11,fontWeight:800,cursor:"pointer",
-              display:"flex",alignItems:"center",gap:5,
-              boxShadow:`0 3px 10px ${GOLD}40`,
-            }}>
-              {isReposting?"⏳":"🔁"} {isReposting?"...":"Repost"}
-            </button>
+            {LIMITS[userPlan||"free"].repost
+              ?<button onClick={()=>handleRepost(art)} disabled={isReposting} style={{padding:"5px 12px",borderRadius:8,border:"none",background:isReposting?"#636366":GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:5,boxShadow:`0 3px 10px ${GOLD}40`}}>
+                {isReposting?"⏳":"🔁"} {isReposting?"...":"Repost"}
+              </button>
+              :<button onClick={()=>setShowPricingModal(true)} style={{padding:"5px 12px",borderRadius:8,border:`1px solid ${GOLD}40`,background:`${GOLD}10`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                🔒 Repost Pro
+              </button>
+            }
 
             {/* Supprimer */}
             <button onClick={()=>deleteArticle(art.id)} style={{marginLeft:"auto",padding:"5px 8px",borderRadius:8,border:"1px solid #ff3b3040",background:"#ff3b3010",color:"#ff3b30",fontSize:11,cursor:"pointer"}}>🗑</button>
@@ -1794,47 +1793,47 @@ const PLANS = {
 };
 
 const LIMITS = {
-  free:   {annonces:10,  stock:20,  agent:3,   tendances:3,   reponses:5,  reopt:3,  pdf:false, repost:false, export:false, ebook:false, discord:false},
-  pro:    {annonces:50,  stock:100, agent:20,  tendances:20,  reponses:30, reopt:20, pdf:true,  repost:true,  export:true,  ebook:false, discord:false},
-  expert: {annonces:999, stock:999, agent:999, tendances:999, reponses:999,reopt:999,pdf:true,  repost:true,  export:true,  ebook:true,  discord:true},
+  free:   {annonces:5,   stock:10,  agent:0,   tendances:2,   reponses:0,  reopt:0,  pdf:false, repost:false, export:false, ventes:false, ebook:false, discord:false},
+  pro:    {annonces:50,  stock:100, agent:20,  tendances:20,  reponses:30, reopt:20, pdf:true,  repost:true,  export:true,  ventes:true,  ebook:false, discord:false},
+  expert: {annonces:999, stock:999, agent:999, tendances:999, reponses:999,reopt:999,pdf:true,  repost:true,  export:true,  ventes:true,  ebook:true,  discord:true},
 };
 
 const PLAN_FEATURES = {
   free:[
-    {ok:true,  label:"10 annonces IA / mois"},
-    {ok:true,  label:"20 articles en stock"},
-    {ok:true,  label:"3 questions Agent IA / jour"},
-    {ok:true,  label:"3 analyses Tendances / jour"},
-    {ok:true,  label:"5 réponses auto / jour"},
+    {ok:true,  label:"5 annonces IA / mois"},
+    {ok:true,  label:"10 articles en stock"},
+    {ok:true,  label:"2 analyses Tendances / mois"},
+    {ok:false, label:"Agent IA (bloqué)"},
+    {ok:false, label:"Réponses acheteurs (bloqué)"},
+    {ok:false, label:"Ré-optimisation (bloqué)"},
+    {ok:false, label:"Suivi CA & Ventes (bloqué)"},
     {ok:false, label:"PDF templates marques"},
     {ok:false, label:"Repost en 1 clic"},
-    {ok:false, label:"Export stats"},
     {ok:false, label:"Ebook stratégie vente"},
-    {ok:false, label:"Communauté Discord"},
   ],
   pro:[
     {ok:true,  label:"50 annonces IA / mois"},
     {ok:true,  label:"100 articles en stock"},
-    {ok:true,  label:"20 questions Agent IA / jour"},
-    {ok:true,  label:"20 analyses Tendances / jour"},
-    {ok:true,  label:"30 réponses auto / jour"},
+    {ok:true,  label:"20 analyses Tendances / mois"},
+    {ok:true,  label:"Agent IA · 20 questions / jour"},
+    {ok:true,  label:"Réponses acheteurs · 30 / mois"},
+    {ok:true,  label:"Ré-optimisation · 20 / mois"},
+    {ok:true,  label:"Suivi CA & Ventes"},
     {ok:true,  label:"PDF templates marques"},
     {ok:true,  label:"Repost en 1 clic"},
-    {ok:true,  label:"Export stats"},
     {ok:false, label:"Ebook stratégie vente"},
-    {ok:false, label:"Communauté Discord"},
   ],
   expert:[
     {ok:true,  label:"Annonces IA illimitées"},
     {ok:true,  label:"Stock illimité"},
-    {ok:true,  label:"Agent IA toutes fonctions"},
     {ok:true,  label:"Tendances illimitées"},
-    {ok:true,  label:"Réponses auto illimitées"},
+    {ok:true,  label:"Agent IA illimité"},
+    {ok:true,  label:"Réponses acheteurs illimitées"},
+    {ok:true,  label:"Ré-optimisation illimitée"},
+    {ok:true,  label:"Suivi CA & Ventes"},
     {ok:true,  label:"PDF templates marques"},
     {ok:true,  label:"Repost en 1 clic"},
-    {ok:true,  label:"Export stats"},
     {ok:true,  label:"📖 Ebook stratégie vente"},
-    {ok:true,  label:"💬 Communauté Discord (bientôt)"},
   ],
 };
 
@@ -1897,17 +1896,17 @@ function TabPricing({dark,userPlan="free",onSubscribe}){
   };
 
   const TABLE_ROWS=[
-    {label:"Annonces IA / mois",     free:"10",     pro:"50",      expert:"∞"},
-    {label:"Articles en stock",       free:"20",     pro:"100",     expert:"∞"},
-    {label:"Agent IA / jour",         free:"3",      pro:"20",      expert:"∞"},
-    {label:"Tendances / jour",        free:"3",      pro:"20",      expert:"∞"},
-    {label:"Réponses auto / jour",    free:"5",      pro:"30",      expert:"∞"},
-    {label:"Ré-optimisation / mois",  free:"3",      pro:"20",      expert:"∞"},
-    {label:"PDF templates",           free:false,    pro:true,      expert:true},
-    {label:"Repost en 1 clic",        free:false,    pro:true,      expert:true},
-    {label:"Export stats",            free:false,    pro:true,      expert:true},
-    {label:"📖 Ebook vente",          free:false,    pro:false,     expert:true},
-    {label:"💬 Discord communauté",   free:false,    pro:false,     expert:true},
+    {label:"Annonces IA / mois",      free:"5",      pro:"50",      expert:"∞"},
+    {label:"Articles en stock",        free:"10",     pro:"100",     expert:"∞"},
+    {label:"Tendances / mois",         free:"2",      pro:"20",      expert:"∞"},
+    {label:"Agent IA / jour",          free:false,    pro:"20",      expert:"∞"},
+    {label:"Réponses acheteurs / mois",free:false,    pro:"30",      expert:"∞"},
+    {label:"Ré-optimisation / mois",   free:false,    pro:"20",      expert:"∞"},
+    {label:"Suivi CA & Ventes",        free:false,    pro:true,      expert:true},
+    {label:"PDF templates",            free:false,    pro:true,      expert:true},
+    {label:"Repost en 1 clic",         free:false,    pro:true,      expert:true},
+    {label:"📖 Ebook vente",           free:false,    pro:false,     expert:true},
+    {label:"💬 Discord communauté",    free:false,    pro:false,     expert:true},
   ];
 
   const Cell=({val,planId})=>{
@@ -2117,11 +2116,19 @@ export default function App(){
     annonce:<TabAnnonce dark={dark} session={session} history={history} setHistory={setHistory} resultToShow={resultToShow} setResultToShow={setResultToShow} {...UP}/>,
     tendances:<TabTendances dark={dark} {...UP}/>,
     marge:<TabMarge dark={dark}/>,
-    agent:<TabAgent dark={dark} session={session} history={history} stock={stock} {...UP}/>,
+    agent:LIMITS[userPlan||"free"].agent===0
+      ?<LockedFeature dark={dark} feature="Agent IA" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>
+      :<TabAgent dark={dark} session={session} history={history} stock={stock} {...UP}/>,
     stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}} {...UP}/>,
-    reponses:<TabReponses dark={dark} {...UP}/>,
-    reopt:<TabReopt dark={dark} {...UP}/>,
-    ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
+    reponses:LIMITS[userPlan||"free"].reponses===0
+      ?<LockedFeature dark={dark} feature="Réponses Acheteurs" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>
+      :<TabReponses dark={dark} {...UP}/>,
+    reopt:LIMITS[userPlan||"free"].reopt===0
+      ?<LockedFeature dark={dark} feature="Ré-optimisation" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>
+      :<TabReopt dark={dark} {...UP}/>,
+    ventes:LIMITS[userPlan||"free"].ventes===false
+      ?<LockedFeature dark={dark} feature="Suivi CA & Ventes" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>
+      :<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
     historique:<TabHistorique dark={dark} session={session} history={history} setHistory={setHistory} setTab={setTab} setResultToShow={setResultToShow}/>,
     extension:<TabExtension dark={dark}/>,
     pdf:LIMITS[userPlan||"free"].pdf?<TabPDF dark={dark}/>:<LockedFeature dark={dark} feature="PDF Templates" plan="Pro" onUpgrade={()=>setShowPricingModal(true)}/>,
