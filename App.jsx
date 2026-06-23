@@ -896,8 +896,6 @@ function TabStock({dark,session,stock,setStock,history,openTab}){
   // ── Stats calculées ──────────────────────────────────────────────────────────
 
   const totalCA=stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
-  const moisCourant=new Date().toLocaleDateString("fr-FR",{month:"numeric",year:"numeric"});
-  const CAceMois=stock.filter(s=>s.statut==="vendu"&&(s.dateAjout||"").includes(new Date().getFullYear().toString())).reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
   const nbEnVente=stock.filter(s=>s.statut==="en_vente").length;
   const nbVendus=stock.filter(s=>s.statut==="vendu").length;
   const prixMoyen=nbVendus>0?(totalCA/nbVendus).toFixed(0):0;
@@ -1761,7 +1759,7 @@ export default function App(){
     tendances:<TabTendances dark={dark}/>,
     marge:<TabMarge dark={dark}/>,
     agent:<TabAgent dark={dark} session={session} history={history} stock={stock}/>,
-    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={openTab}/>,
+    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={(t)=>{setTab(t);setHomeView(false);}}/>,
     reponses:<TabReponses dark={dark}/>,
     reopt:<TabReopt dark={dark}/>,
     ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
