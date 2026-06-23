@@ -1530,18 +1530,39 @@ function TabPDF({dark}){
   };
 
   // Ask Claude to identify which texts are the important editable fields
+  // Ultra-safe JSON parser - handles any special chars
+  const safeParseJSON=(raw)=>{
+    if(!raw) throw new Error("Réponse vide");
+    // Strip markdown fences
+    let t=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+    // Extract between first [ and last ] (we expect an array at root or {"fields":[...]})
+    // Strategy: find all numbers after "idx": pattern - most robust approach
+    const idxMatches=[...t.matchAll(/"idx"\s*:\s*(\d+)/g)];
+    const labelMatches=[...t.matchAll(/"label"\s*:\s*"([^"]{1,60})"/g)];
+    if(idxMatches.length>0){
+      // Build fields from regex matches - bypasses JSON.parse entirely
+      const fields=idxMatches.map((m,i)=>({
+        idx:parseInt(m[1]),
+        label:labelMatches[i]?labelMatches[i][1]:`Champ ${i+1}`
+      }));
+      return {fields};
+    }
+    // Fallback: try standard JSON parse on ASCII-only version
+    const ascii=t.replace(/[^\x00-\x7F]/g,"?")
+                  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"")
+                  .replace(/\n/g," ").replace(/\r/g,"").replace(/\t/g," ");
+    const s=ascii.indexOf("{"),e=ascii.lastIndexOf("}");
+    if(s===-1) throw new Error("Aucun JSON trouvé");
+    return JSON.parse(ascii.slice(s,e+1));
+  };
+
   const identifyFields=async(imageB64,textItems)=>{
-    // Build a numbered list of all text items for Claude
-    const textList=textItems.map((t,i)=>`[${i}] "${t.text}"`).join("\n");
-    const prompt=`Voici tous les textes extraits de ce document PDF (numérotés).
-${textList}
+    // Send ONLY indices to Claude - NO text values in the response to avoid encoding issues
+    const textList=textItems.map((t,i)=>`[${i}] ${t.text}`).join("\n");
+    // Keep label short ASCII only in prompt format example
+    const prompt="Voici les textes extraits de ce PDF, chacun numerote.\n"+textList+"\n\nIdentifie les 8 a 18 champs MODIFIABLES les plus importants (noms, dates, montants, refs, adresses, articles).\nReponds UNIQUEMENT avec ce JSON strict - utilise SEULEMENT des caracteres ASCII dans label, pas d apostrophe typographique, pas de symboles speciaux:\n{\"fields\":[{\"idx\":3,\"label\":\"Nom client\"},{\"idx\":7,\"label\":\"Date facture\"}]}\nIMPORTANT: labels en ASCII simple. Pas de valeur dans la reponse, seulement idx et label.";
 
-Identifie les champs MODIFIABLES importants (noms, dates, montants, références, adresses, numéros de commande/facture, articles).
-Réponds UNIQUEMENT en JSON, sans markdown, sans backtick:
-{"fields":[{"idx":0,"label":"Libellé court","value":"texte original"}]}
-idx = numéro exact du texte dans la liste. Inclus 8 à 20 champs maximum. Seulement les plus importants.`;
-
-    const body={model:"claude-sonnet-4-6",max_tokens:2000,messages:[{role:"user",content:[
+    const body={model:"claude-sonnet-4-6",max_tokens:800,messages:[{role:"user",content:[
       {type:"image",source:{type:"base64",media_type:"image/jpeg",data:imageB64}},
       {type:"text",text:prompt}
     ]}]};
@@ -1550,16 +1571,7 @@ idx = numéro exact du texte dans la liste. Inclus 8 à 20 champs maximum. Seule
     const data=await res.json();
     if(data.error) throw new Error(data.error);
     const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-    if(!text) throw new Error("Réponse vide");
-    // Robust JSON parse
-    let t=text.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-    const s=t.indexOf("{"),e=t.lastIndexOf("}");
-    if(s===-1) throw new Error("JSON introuvable");
-    t=t.slice(s,e+1);
-    try{return JSON.parse(t);}catch{
-      const cleaned=t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/\n/g," ").replace(/\r/g,"");
-      return JSON.parse(cleaned);
-    }
+    return safeParseJSON(text);
   };
 
   // Merge Claude's field identification with exact pdf.js positions
@@ -1574,7 +1586,7 @@ idx = numéro exact du texte dans la liste. Inclus 8 à 20 champs maximum. Seule
       return {
         id:`field_${i}`,
         label:f.label||`Champ ${i+1}`,
-        value:f.value||item.text,
+        value:item.text, // Always use pdf.js extracted text - never Claude's version
         x:item.x, y:item.y, w:Math.max(item.w,15), h:item.h,
         fontSize:item.fontSize,
         origText:item.text,
