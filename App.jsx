@@ -894,7 +894,7 @@ function TabStock({dark,session,stock,setStock,history,openTab}){
   const filtered=filter==="tous"?stock:stock.filter(s=>s.statut===filter);
 
   // ── Stats calculées ──────────────────────────────────────────────────────────
-  const venduList=stock.filter(s=>s.statut==="en_vente"===false&&s.statut==="vendu");
+
   const totalCA=stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
   const moisCourant=new Date().toLocaleDateString("fr-FR",{month:"numeric",year:"numeric"});
   const CAceMois=stock.filter(s=>s.statut==="vendu"&&(s.dateAjout||"").includes(new Date().getFullYear().toString())).reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
