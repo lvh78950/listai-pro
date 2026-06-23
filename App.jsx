@@ -881,61 +881,137 @@ function TabAgent({dark,session,history,stock}){
 }
 
 // ── TAB STOCK ─────────────────────────────────────────────────────────────────
-function TabStock({dark,session,stock,setStock,history}){
+function TabStock({dark,session,stock,setStock,history,openTab}){
   const [form,setForm]=useState({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});
   const [showForm,setShowForm]=useState(false);
   const [filter,setFilter]=useState("tous");
   const [saving,setSaving]=useState(false);
+  const [repostId,setRepostId]=useState(null);
+  const [repostToast,setRepostToast]=useState(null);
   const photoStockRef=useRef();
+
   const statuts=[{k:"en_vente",l:"En vente",c:"#007aff"},{k:"vendu",l:"Vendu",c:"#34c759"},{k:"reserve",l:"Réservé",c:"#ff9500"}];
   const filtered=filter==="tous"?stock:stock.filter(s=>s.statut===filter);
+
+  // ── Stats calculées ──────────────────────────────────────────────────────────
+  const venduList=stock.filter(s=>s.statut==="en_vente"===false&&s.statut==="vendu");
   const totalCA=stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
+  const moisCourant=new Date().toLocaleDateString("fr-FR",{month:"numeric",year:"numeric"});
+  const CAceMois=stock.filter(s=>s.statut==="vendu"&&(s.dateAjout||"").includes(new Date().getFullYear().toString())).reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
+  const nbEnVente=stock.filter(s=>s.statut==="en_vente").length;
+  const nbVendus=stock.filter(s=>s.statut==="vendu").length;
+  const prixMoyen=nbVendus>0?(totalCA/nbVendus).toFixed(0):0;
+  const meilleureVente=stock.filter(s=>s.statut==="vendu").sort((a,b)=>(parseFloat(b.prix)||0)-(parseFloat(a.prix)||0))[0];
+
+  const showToast=(m)=>{setRepostToast(m);setTimeout(()=>setRepostToast(null),3000);};
 
   const addArticle=async()=>{
     if(!form.titre.trim())return;setSaving(true);
     const a={...form,statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR")};
     const saved=await db.addStock(session.user.id,a,session.access_token);
     if(saved?.id)setStock(prev=>[{...a,id:saved.id},...prev]);
-    setForm({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});setShowForm(false);setSaving(false);
+    setForm({titre:"",marque:"",taille:"",prix:"",plateforme:"Vinted",etat:"Très bon état",notes:"",photo:""});
+    setShowForm(false);setSaving(false);
   };
-  const updateStatut=async(id,statut)=>{await db.updStock(session.user.id,id,{statut},session.access_token);setStock(prev=>prev.map(s=>s.id===id?{...s,statut}:s));};
-  const deleteArticle=async(id)=>{await db.delStock(session.user.id,id,session.access_token);setStock(prev=>prev.filter(s=>s.id!==id));};
+
+  const updateStatut=async(id,statut)=>{
+    await db.updStock(session.user.id,id,{statut},session.access_token);
+    setStock(prev=>prev.map(s=>s.id===id?{...s,statut}:s));
+    if(statut==="vendu") showToast("🎉 Vendu ! CA mis à jour");
+  };
+
+  const deleteArticle=async(id)=>{
+    await db.delStock(session.user.id,id,session.access_token);
+    setStock(prev=>prev.filter(s=>s.id!==id));
+  };
+
   const importFromHistory=async h=>{
     const a={titre:h.result.titre,marque:h.result.marque,taille:h.result.taille,prix:h.result.prix_recommande,plateforme:"Vinted",etat:h.result.etat,notes:"",statut:"en_vente",dateAjout:new Date().toLocaleDateString("fr-FR"),photo:h.photo||""};
     const saved=await db.addStock(session.user.id,a,session.access_token);
     if(saved?.id)setStock(prev=>[{...a,id:saved.id,photo:h.photo||""},...prev]);
   };
 
-  return <div>
-    <Title dark={dark} sub="Synchronisé sur tous tes appareils ☁️">📦 Gestion du stock</Title>
+  // ── Repost : copie l'annonce dans le presse-papier + remet en vente ──────────
+  const handleRepost=async(art)=>{
+    setRepostId(art.id);
+    // Cherche l'annonce liée dans l'historique
+    const linked=history.find(h=>h.result?.titre===art.titre||h.result?.marque===art.marque);
+    const desc=linked?.result?.description||`${art.titre}
+État : ${art.etat}
+Taille : ${art.taille}
+Plateforme : ${art.plateforme}`;
+    const hashtags=linked?.result?.hashtags||"";
+    const texteRepost=`${desc}
 
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-      {[["En vente",stock.filter(s=>s.statut==="en_vente").length,"#007aff"],["Vendus",stock.filter(s=>s.statut==="vendu").length,"#34c759"],["CA total",`${totalCA.toFixed(0)}€`,GOLD]].map(([l,v,c])=>(
-        <Card key={l} dark={dark} style={{textAlign:"center",padding:14,marginBottom:0}}>
-          <div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div>
-          <div style={{fontSize:10,color:T.text2(dark),marginTop:3,fontWeight:600}}>{l}</div>
-        </Card>
-      ))}
+${hashtags}`.trim();
+    try{
+      await navigator.clipboard.writeText(texteRepost);
+      // Si l'article était vendu ou réservé → remet en vente
+      if(art.statut!=="en_vente") await updateStatut(art.id,"en_vente");
+      showToast("✓ Annonce copiée ! Colle-la sur Vinted / Vinted.");
+    }catch{
+      showToast("✓ Prêt à repost !");
+    }
+    setRepostId(null);
+  };
+
+  return <div>
+    <Title dark={dark} sub="Gérez votre stock et suivez vos ventes">📦 Mon Stock</Title>
+
+    {/* ── Stats dashboard ─────────────────────────────────────────────────── */}
+    <div style={{background:dark?"linear-gradient(135deg,#1c1c1e,#2c2c2e)":"linear-gradient(135deg,#f8f8ff,#f0ebff)",borderRadius:20,padding:16,marginBottom:14,border:`1px solid ${GOLD}30`}}>
+      <div style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:12}}>📊 Mes stats de vente</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+        <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
+          <div style={{fontSize:24,fontWeight:900,color:"#007aff"}}>{nbEnVente}</div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>En vente</div>
+        </div>
+        <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
+          <div style={{fontSize:24,fontWeight:900,color:"#34c759"}}>{nbVendus}</div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>Vendus</div>
+        </div>
+        <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
+          <div style={{fontSize:24,fontWeight:900,color:GOLD}}>{totalCA.toFixed(0)}€</div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>CA total</div>
+        </div>
+        <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
+          <div style={{fontSize:24,fontWeight:900,color:"#ff9500"}}>{prixMoyen}€</div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>Prix moyen vendu</div>
+        </div>
+      </div>
+      {meilleureVente&&<div style={{background:dark?"#2c2c2e":"white",borderRadius:12,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginBottom:2}}>🏆 Meilleure vente</div>
+          <div style={{fontSize:12,fontWeight:700,color:T.text(dark),overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:180}}>{meilleureVente.titre}</div>
+        </div>
+        <div style={{fontSize:16,fontWeight:900,color:GOLD,flexShrink:0}}>{meilleureVente.prix}€</div>
+      </div>}
     </div>
 
+    {/* ── Filtres + Ajouter ────────────────────────────────────────────────── */}
     <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
       {[["tous","Tous"],...statuts.map(s=>[s.k,s.l])].map(([k,l])=>(
         <button key={k} onClick={()=>setFilter(k)} style={{padding:"6px 12px",borderRadius:20,border:`1.5px solid ${filter===k?GOLD:T.border(dark)}`,background:filter===k?`${GOLD}15`:"transparent",color:filter===k?GOLD:T.text2(dark),fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
       ))}
-      <button onClick={()=>setShowForm(!showForm)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:`linear-gradient(135deg,${GOLD},#e8c584)`,color:"#1a1a2e",fontSize:11,fontWeight:800,cursor:"pointer"}}>+ Ajouter</button>
+      <button onClick={()=>setShowForm(!showForm)} style={{marginLeft:"auto",padding:"6px 14px",borderRadius:20,border:"none",background:GRAD,color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>+ Ajouter</button>
     </div>
 
+    {/* ── Formulaire ajout ─────────────────────────────────────────────────── */}
     {showForm&&<Card dark={dark}>
       <Label dark={dark}>Nouvel article</Label>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Titre *</div><Inp value={form.titre} onChange={e=>setForm(p=>({...p,titre:e.target.value}))} placeholder="Ex: Veste Zara S" dark={dark}/></div>
-        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Marque</div><Inp value={form.marque} onChange={e=>setForm(p=>({...p,marque:e.target.value}))} placeholder="Zara" dark={dark}/></div>
-        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Taille</div><Inp value={form.taille} onChange={e=>setForm(p=>({...p,taille:e.target.value}))} placeholder="S / 36" dark={dark}/></div>
-        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Prix (€)</div><Inp type="number" value={form.prix} onChange={e=>setForm(p=>({...p,prix:e.target.value}))} placeholder="25" dark={dark}/></div>
-        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Plateforme</div><select value={form.plateforme} onChange={e=>setForm(p=>({...p,plateforme:e.target.value}))} style={{width:"100%",padding:"12px 14px",border:`1.5px solid ${T.border(dark)}`,borderRadius:10,fontSize:14,background:T.card(dark),color:T.text(dark),outline:"none"}}>{PLATFORMS.map(p=><option key={p}>{p}</option>)}</select></div>
+        <div style={{gridColumn:"1/-1"}}><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Titre *</div><Inp value={form.titre} onChange={e=>setForm(p=>({...p,titre:e.target.value}))} placeholder="Ex: Nike Air Max 90 - Blanc - 42" dark={dark}/></div>
+        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Marque</div><Inp value={form.marque} onChange={e=>setForm(p=>({...p,marque:e.target.value}))} placeholder="Nike" dark={dark}/></div>
+        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Taille</div><Inp value={form.taille} onChange={e=>setForm(p=>({...p,taille:e.target.value}))} placeholder="42 EU" dark={dark}/></div>
+        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Prix (€)</div><Inp type="number" value={form.prix} onChange={e=>setForm(p=>({...p,prix:e.target.value}))} placeholder="85" dark={dark}/></div>
+        <div><div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>Plateforme</div>
+          <select value={form.plateforme} onChange={e=>setForm(p=>({...p,plateforme:e.target.value}))} style={{width:"100%",padding:"12px 14px",border:`1.5px solid ${T.border(dark)}`,borderRadius:10,fontSize:14,background:T.card(dark),color:T.text(dark),outline:"none"}}>
+            {PLATFORMS.map(p=><option key={p}>{p}</option>)}
+          </select>
+        </div>
       </div>
       {/* Photo */}
-      <div style={{marginBottom:10}}>
+      <div style={{marginBottom:12}}>
         <div style={{fontSize:11,color:T.text2(dark),marginBottom:6}}>📸 Photo (visible dans la vitrine)</div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           {form.photo
@@ -956,35 +1032,74 @@ function TabStock({dark,session,stock,setStock,history}){
           reader.readAsDataURL(file);
         }}/>
       </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={addArticle} disabled={saving} small>{saving?"☁️ Sauvegarde...":"Ajouter"}</Btn><Btn onClick={()=>setShowForm(false)} variant="ghost" small>Annuler</Btn></div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={addArticle} disabled={saving} small>{saving?"☁️ Sauvegarde...":"✓ Ajouter"}</Btn>
+        <Btn onClick={()=>setShowForm(false)} variant="ghost" small>Annuler</Btn>
+      </div>
     </Card>}
 
+    {/* ── Import historique ────────────────────────────────────────────────── */}
     {history.length>0&&<Card dark={dark} style={{borderLeft:`3px solid ${GOLD}`}}>
-      <Label dark={dark}>↩ Importer depuis l'historique</Label>
-      {history.slice(0,3).map(h=><div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <span style={{fontSize:12,color:T.text(dark)}}>{h.result.titre}</span>
-        <Btn onClick={()=>importFromHistory(h)} variant="outline" small>Importer</Btn>
+      <Label dark={dark}>↩ Importer depuis mes annonces</Label>
+      {history.slice(0,4).map(h=><div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,gap:8}}>
+        {h.photo&&<img src={h.photo} alt="" style={{width:32,height:32,borderRadius:7,objectFit:"cover",flexShrink:0}}/>}
+        <span style={{fontSize:12,color:T.text(dark),flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.result.titre}</span>
+        <Btn onClick={()=>importFromHistory(h)} variant="outline" small>+ Stock</Btn>
       </div>)}
     </Card>}
 
-    {filtered.length===0?<Empty emoji="📦" title="Aucun article" sub="Ajoute ton premier article en stock !"/>:
-    <div>{filtered.map(art=>{const s=statuts.find(x=>x.k===art.statut);return <Card key={art.id} dark={dark}>
-      <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
-        {art.photo&&<img src={art.photo} alt="" style={{width:52,height:52,borderRadius:10,objectFit:"cover",flexShrink:0,border:`1px solid ${T.border(dark)}`}}/>}
-        <div style={{flex:1,minWidth:0}}>
-          <p style={{margin:"0 0 2px",fontSize:13,fontWeight:700,color:T.text(dark),overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{art.titre}</p>
-          <p style={{margin:0,fontSize:10,color:T.text2(dark)}}>{art.marque}{art.taille?" · "+art.taille:""} · {art.plateforme}</p>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-          <span style={{fontSize:15,fontWeight:900,color:GOLD}}>{art.prix}€</span>
-          <span style={{padding:"3px 8px",borderRadius:20,background:`${s.c}15`,color:s.c,fontSize:10,fontWeight:700}}>{s.l}</span>
-        </div>
-      </div>
-      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-        {statuts.filter(x=>x.k!==art.statut).map(x=><button key={x.k} onClick={()=>updateStatut(art.id,x.k)} style={{padding:"4px 10px",borderRadius:7,border:`1px solid ${x.c}40`,background:`${x.c}10`,color:x.c,fontSize:11,fontWeight:700,cursor:"pointer"}}>→ {x.l}</button>)}
-        <button onClick={()=>deleteArticle(art.id)} style={{marginLeft:"auto",padding:"4px 8px",borderRadius:7,border:"1px solid #ff3b3040",background:"#ff3b3010",color:"#ff3b30",fontSize:11,cursor:"pointer"}}>🗑</button>
-      </div>
-    </Card>;})}</div>}
+    {/* ── Liste articles ───────────────────────────────────────────────────── */}
+    {filtered.length===0
+      ?<Empty emoji="📦" title="Aucun article" sub="Ajoute ton premier article en stock !"/>
+      :<div>{filtered.map(art=>{
+        const s=statuts.find(x=>x.k===art.statut)||statuts[0];
+        const isReposting=repostId===art.id;
+        return <Card key={art.id} dark={dark} style={{marginBottom:10}}>
+          <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
+            {/* Photo */}
+            <div style={{width:60,height:60,borderRadius:12,overflow:"hidden",flexShrink:0,background:T.card2(dark),display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>
+              {art.photo?<img src={art.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:"👕"}
+            </div>
+            {/* Infos */}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700,color:T.text(dark),overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:2}}>{art.titre}</div>
+              <div style={{fontSize:10,color:T.text2(dark),marginBottom:4}}>{art.marque}{art.taille?" · "+art.taille:""} · {art.plateforme}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:15,fontWeight:900,color:GOLD}}>{art.prix}€</span>
+                <span style={{padding:"2px 8px",borderRadius:20,background:`${s.c}15`,color:s.c,fontSize:10,fontWeight:700}}>{s.l}</span>
+                {art.dateAjout&&<span style={{fontSize:9,color:T.text3(dark)}}>{art.dateAjout}</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Boutons actions */}
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {/* Changer statut */}
+            {statuts.filter(x=>x.k!==art.statut).map(x=>(
+              <button key={x.k} onClick={()=>updateStatut(art.id,x.k)} style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${x.c}40`,background:`${x.c}10`,color:x.c,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                {x.k==="vendu"?"✅ Marquer vendu":x.k==="reserve"?"🔒 Réserver":"🔄 Remettre en vente"}
+              </button>
+            ))}
+
+            {/* Bouton REPOST */}
+            <button onClick={()=>handleRepost(art)} disabled={isReposting} style={{
+              padding:"5px 12px",borderRadius:8,border:"none",
+              background:isReposting?"#636366":GRAD,
+              color:"white",fontSize:11,fontWeight:800,cursor:"pointer",
+              display:"flex",alignItems:"center",gap:5,
+              boxShadow:`0 3px 10px ${GOLD}40`,
+            }}>
+              {isReposting?"⏳":"🔁"} {isReposting?"...":"Repost"}
+            </button>
+
+            {/* Supprimer */}
+            <button onClick={()=>deleteArticle(art.id)} style={{marginLeft:"auto",padding:"5px 8px",borderRadius:8,border:"1px solid #ff3b3040",background:"#ff3b3010",color:"#ff3b30",fontSize:11,cursor:"pointer"}}>🗑</button>
+          </div>
+        </Card>;
+      })}</div>
+    }
+
+    {repostToast&&<Toast msg={repostToast} onDone={()=>setRepostToast(null)}/>}
   </div>;
 }
 
@@ -1646,7 +1761,7 @@ export default function App(){
     tendances:<TabTendances dark={dark}/>,
     marge:<TabMarge dark={dark}/>,
     agent:<TabAgent dark={dark} session={session} history={history} stock={stock}/>,
-    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history}/>,
+    stock:<TabStock dark={dark} session={session} stock={stock} setStock={setStock} history={history} openTab={openTab}/>,
     reponses:<TabReponses dark={dark}/>,
     reopt:<TabReopt dark={dark}/>,
     ventes:<TabVentes dark={dark} session={session} ventes={ventes} setVentes={setVentes}/>,
@@ -1701,7 +1816,20 @@ export default function App(){
           <div style={{position:"absolute",bottom:-40,right:20,width:80,height:80,borderRadius:"50%",background:"rgba(255,107,43,0.3)"}}/>
           <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:6}}>Bonjour 👋</div>
           <div style={{fontSize:22,fontWeight:900,color:"white",marginBottom:4,letterSpacing:"-0.3px"}}>{session.user.email.split("@")[0]}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:16}}>{history.length} annonce(s) · {stock.filter(s=>s.statut==="en_vente").length} en vente · {ventes.length} vente(s)</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:8}}>{history.length} annonce(s) · {stock.filter(s=>s.statut==="en_vente").length} en vente</div>
+          {/* Mini stats inline dans le hero */}
+          {stock.filter(s=>s.statut==="vendu").length>0&&<div style={{display:"flex",gap:8,marginBottom:16}}>
+            {[
+              [`${stock.filter(s=>s.statut==="vendu").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0).toFixed(0)}€`,"CA total"],
+              [`${stock.filter(s=>s.statut==="vendu").length}`,"Vendus"],
+              [`${stock.filter(s=>s.statut==="en_vente").length}`,"En vente"],
+            ].map(([v,l])=>(
+              <div key={l} style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 10px",backdropFilter:"blur(4px)"}}>
+                <div style={{fontSize:14,fontWeight:900,color:"white"}}>{v}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:600}}>{l}</div>
+              </div>
+            ))}
+          </div>}
           <button onClick={()=>openTab("annonce")} style={{padding:"10px 20px",borderRadius:12,border:"none",background:GRAD_O,color:"white",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 16px rgba(255,107,43,0.5)"}}>⚡ Nouvelle annonce</button>
         </div>
 
