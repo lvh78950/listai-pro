@@ -1808,22 +1808,36 @@ function TabPDF({dark}){
   };
 
   // Open brand editor with preset fields (no AI needed)
-  const openBrand=async(brandId)=>{
+  const openBrand=(brandId)=>{
     const preset=PDF_PRESETS[brandId];
     if(!preset){showToast("❌ Preset introuvable");return;}
     setSelectedBrand(brandId);
     setFields(preset.fields.map(f=>({...f})));
     setMode("editor");
-    setLoadingPDF(true);
-    setPdfImage(null);
-    try{
-      const pdfB64=BRAND_DATA[brandId]?.pdf;
-      if(pdfB64){
-        const img=await renderPDF(pdfB64,preset.fields);
-        setPdfImage(img);
-      }
-    }catch(e){console.error(e);showToast("⚠️ Rendu PDF: "+e.message.slice(0,50));}
-    finally{setLoadingPDF(false);}
+    setLoadingPDF(false);
+    // Use the high-res thumbnail as background (positions are % so they scale)
+    // Thumbnail is at 90dpi - sufficient for overlay display
+    const thumb=BRAND_PREVIEWS[brandId];
+    if(thumb){
+      // Erase text regions on the thumbnail using a canvas
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement("canvas");
+        canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+        const ctx=canvas.getContext("2d");
+        ctx.drawImage(img,0,0);
+        ctx.fillStyle="#ffffff";
+        for(const f of preset.fields){
+          const px=(f.x/100)*canvas.width;
+          const py=(f.y/100)*canvas.height;
+          const pw=(f.w/100)*canvas.width;
+          const ph=(f.h/100)*canvas.height;
+          ctx.fillRect(px-1,py-2,pw+8,ph+6);
+        }
+        setPdfImage(canvas.toDataURL("image/jpeg",0.97));
+      };
+      img.src=thumb;
+    }
   };
 
   // Upload custom PDF - still uses AI for custom files
