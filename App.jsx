@@ -1857,15 +1857,13 @@ const PLAN_FEATURES = {
   ],
 };
 
-// Stripe & PayPal links (à remplacer par tes vrais liens)
+// PayPal links abonnements
 const PAYMENT_LINKS = {
   pro: {
-    stripe: "https://buy.stripe.com/test_cNieVe6v93zs8C77WleQM02",
-    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_PRO_PLAN",
+    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-29J31611LL077792JNI5NKUA",
   },
   expert: {
-    stripe: "https://buy.stripe.com/test_4gM28s2eT0ng5pV7WleQM01",
-    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=YOUR_EXPERT_PLAN",
+    paypal: "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-34T51629H7406291NNI5NMLA",
   },
 };
 
@@ -1909,10 +1907,10 @@ function TabPricing({dark,userPlan="free",onSubscribe}){
   const [selectedPayment,setSelectedPayment]=useState(null);
   const cur=userPlan||"free";
 
-  const handleSubscribe=(planId,method)=>{
-    const link=PAYMENT_LINKS[planId]?.[method];
-    if(link&&!link.includes("YOUR_")&&!link.includes("plan_id=YOUR")) window.open(link,"_blank");
-    else setSelectedPayment({planId,method});
+  const handleSubscribe=(planId,method="paypal")=>{
+    const link=PAYMENT_LINKS[planId]?.paypal;
+    if(link&&!link.includes("YOUR_")) window.open(link,"_blank");
+    else setSelectedPayment({planId,method:"paypal"});
   };
 
   const TABLE_ROWS=[
@@ -2028,7 +2026,7 @@ function TabPricing({dark,userPlan="free",onSubscribe}){
       <Label dark={dark}>❓ Questions fréquentes</Label>
       {[
         ["Puis-je annuler à tout moment ?","Oui, sans engagement. L'abonnement reste actif jusqu'à la fin de la période payée."],
-        ["Comment fonctionne le paiement ?","Stripe (carte bancaire) ou PayPal. Renouvellement automatique mensuel ou annuel."],
+        ["Comment fonctionne le paiement ?","PayPal uniquement. Renouvellement automatique mensuel ou annuel. Annulable à tout moment."],
         ["Qu'est-ce que l'Ebook Expert ?","Un guide complet : pricing, photos, timing, négociation. Livré par email après souscription."],
         ["Le Discord est-il disponible ?","Il arrive très bientôt ! Les membres Expert seront les premiers invités."],
       ].map(([q,a],i)=>(
@@ -2043,7 +2041,7 @@ function TabPricing({dark,userPlan="free",onSubscribe}){
       <div style={{background:T.card(dark),borderRadius:20,padding:24,maxWidth:340,width:"100%"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:18,fontWeight:900,color:T.text(dark),marginBottom:8}}>🔗 Configure le lien</div>
         <div style={{fontSize:13,color:T.text2(dark),marginBottom:12,lineHeight:1.6}}>Remplace dans App.jsx la variable :</div>
-        <div style={{background:T.card2(dark),borderRadius:10,padding:12,marginBottom:16,fontFamily:"monospace",fontSize:11,color:GOLD}}>PAYMENT_LINKS.{selectedPayment?.planId}.{selectedPayment?.method}</div>
+        <div style={{background:T.card2(dark),borderRadius:10,padding:12,marginBottom:16,fontFamily:"monospace",fontSize:11,color:GOLD}}>PAYMENT_LINKS.{selectedPayment?.planId}.paypal</div>
         <button onClick={()=>setSelectedPayment(null)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:GRAD,color:"white",fontSize:14,fontWeight:800,cursor:"pointer"}}>OK</button>
       </div>
     </div>}
