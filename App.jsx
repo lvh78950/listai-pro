@@ -2007,7 +2007,7 @@ Prix: ${art.prix}€`;
   const handleAlert=async()=>{
     if(!alertQuery.trim()) return;
     setAlertLoading(true);setAlertResult(null);
-    const prompt="Expert revendeur. Article: "+alertQuery+". Reponds UNIQUEMENT en JSON valide, PAS d apostrophe dans les valeurs, PAS d accent dans les cles, valeurs numeriques sans texte: {"article":""+alertQuery+"","prix_min":25,"prix_max":80,"prix_moyen":50,"prix_ideal":45,"tendance":"stable","conseil":"Conseil court sans apostrophe"}";
+    const prompt=`Expert revendeur. Article: ${alertQuery}. Reponds UNIQUEMENT en JSON sans markdown, sans backtick, sans apostrophe dans les valeurs. Format exact avec nombres uniquement: {"article":"NOM","prix_min":25,"prix_max":80,"prix_moyen":50,"prix_ideal":45,"tendance":"stable","conseil":"Conseil court"}`;
     try{
       const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:300,messages:[{role:"user",content:prompt}]})});
