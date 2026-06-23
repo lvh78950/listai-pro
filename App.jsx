@@ -1387,191 +1387,568 @@ function TabPublications({dark,session,history}){
 }
 
 // ── TAB PDF ───────────────────────────────────────────────────────────────────
-const PDF_TEMPLATES=[
-  {id:"facture",icon:"🧾",label:"Facture / Reçu",desc:"Facture de vente avec articles",color:"#7C3AED",grad:"linear-gradient(135deg,#7C3AED,#2563EB)",fields:[
-    {id:"vendeur_nom",label:"Nom du vendeur",type:"text",placeholder:"Ex: Marie Dupont",required:true,section:"Vendeur"},
-    {id:"vendeur_email",label:"Email vendeur",type:"email",placeholder:"marie@email.com",required:false,section:"Vendeur"},
-    {id:"vendeur_tel",label:"Téléphone",type:"text",placeholder:"06 00 00 00 00",required:false,section:"Vendeur"},
-    {id:"acheteur_nom",label:"Nom de l'acheteur",type:"text",placeholder:"Ex: Jean Martin",required:true,section:"Acheteur"},
-    {id:"acheteur_email",label:"Email acheteur",type:"email",placeholder:"jean@email.com",required:false,section:"Acheteur"},
-    {id:"facture_num",label:"N° de facture",type:"text",placeholder:"Ex: FAC-2024-001",required:true,section:"Facture"},
-    {id:"date_facture",label:"Date",type:"date",placeholder:"",required:true,section:"Facture"},
-    {id:"article_nom",label:"Article vendu",type:"text",placeholder:"Ex: Veste en cuir noire S",required:true,section:"Article"},
-    {id:"article_desc",label:"Description",type:"textarea",placeholder:"État, marque, taille...",required:false,section:"Article"},
-    {id:"prix_ht",label:"Prix (euros)",type:"number",placeholder:"25.00",required:true,section:"Article"},
-    {id:"plateforme",label:"Plateforme de vente",type:"select",options:["Vinted","Leboncoin","eBay","Depop","Vestiaire","Autre"],required:false,section:"Article"},
-    {id:"mode_paiement",label:"Mode de paiement",type:"select",options:["Virement","Paypal","Lydia","Especes","CB","Autre"],required:false,section:"Paiement"},
-    {id:"notes",label:"Notes / Conditions",type:"textarea",placeholder:"Retours non acceptes...",required:false,section:"Notes"},
-  ]},
-  {id:"fiche_article",icon:"🏷️",label:"Fiche Article",desc:"Fiche produit détaillée",color:"#FF6B2B",grad:"linear-gradient(135deg,#FF6B2B,#FF9500)",fields:[
-    {id:"titre",label:"Titre de l'article",type:"text",placeholder:"Ex: Nike Air Max 90 Blanc T42",required:true,section:"Article"},
-    {id:"marque",label:"Marque",type:"text",placeholder:"Nike",required:false,section:"Article"},
-    {id:"taille",label:"Taille",type:"text",placeholder:"M / 40 / 10 ans...",required:false,section:"Article"},
-    {id:"couleur",label:"Couleur",type:"text",placeholder:"Blanc casse",required:false,section:"Article"},
-    {id:"matiere",label:"Matiere",type:"text",placeholder:"100% coton",required:false,section:"Article"},
-    {id:"etat",label:"Etat",type:"select",options:["Neuf avec etiquette","Neuf sans etiquette","Tres bon etat","Bon etat","Satisfaisant"],required:true,section:"Article"},
-    {id:"prix",label:"Prix demande (euros)",type:"number",placeholder:"35.00",required:true,section:"Prix"},
-    {id:"prix_achat",label:"Prix d'achat (euros)",type:"number",placeholder:"15.00",required:false,section:"Prix"},
-    {id:"plateforme",label:"Plateforme",type:"select",options:["Vinted","Leboncoin","eBay","Depop","Vestiaire","Autre"],required:false,section:"Prix"},
-    {id:"description",label:"Description",type:"textarea",placeholder:"Decris l'article en detail...",required:false,section:"Details"},
-    {id:"hashtags",label:"Hashtags",type:"text",placeholder:"#nike #airmax #basket",required:false,section:"Details"},
-    {id:"ref_interne",label:"Ref. interne",type:"text",placeholder:"Ex: BOX-042",required:false,section:"Details"},
-  ]},
-  {id:"etiquette",icon:"📦",label:"Etiquette Colis",desc:"Etiquette d'expedition",color:"#059669",grad:"linear-gradient(135deg,#059669,#10B981)",fields:[
-    {id:"expediteur_nom",label:"Expediteur - Nom",type:"text",placeholder:"Marie Dupont",required:true,section:"Expediteur"},
-    {id:"expediteur_adresse",label:"Adresse expediteur",type:"textarea",placeholder:"12 rue des Lilas 75001 Paris",required:true,section:"Expediteur"},
-    {id:"expediteur_tel",label:"Telephone expediteur",type:"text",placeholder:"06 00 00 00 00",required:false,section:"Expediteur"},
-    {id:"dest_nom",label:"Destinataire - Nom",type:"text",placeholder:"Jean Martin",required:true,section:"Destinataire"},
-    {id:"dest_adresse",label:"Adresse destinataire",type:"textarea",placeholder:"5 av. Victor Hugo 69000 Lyon",required:true,section:"Destinataire"},
-    {id:"dest_tel",label:"Telephone destinataire",type:"text",placeholder:"07 00 00 00 00",required:false,section:"Destinataire"},
-    {id:"transporteur",label:"Transporteur",type:"select",options:["Colissimo","Mondial Relay","Chronopost","DHL","Lettre suivie","Autre"],required:true,section:"Envoi"},
-    {id:"poids",label:"Poids estime (kg)",type:"number",placeholder:"0.5",required:false,section:"Envoi"},
-    {id:"ref_colis",label:"Reference colis",type:"text",placeholder:"REF-001",required:false,section:"Envoi"},
-    {id:"contenu",label:"Contenu du colis",type:"text",placeholder:"Vetements",required:false,section:"Envoi"},
-    {id:"notes_exp",label:"Instructions",type:"textarea",placeholder:"Fragile, ne pas plier...",required:false,section:"Envoi"},
-  ]},
-  {id:"contrat",icon:"📋",label:"Accord de vente",desc:"Contrat entre vendeur et acheteur",color:"#2563EB",grad:"linear-gradient(135deg,#2563EB,#06B6D4)",fields:[
-    {id:"vendeur_nom",label:"Vendeur - Nom complet",type:"text",placeholder:"Marie Dupont",required:true,section:"Parties"},
-    {id:"vendeur_adresse",label:"Adresse vendeur",type:"textarea",placeholder:"12 rue des Lilas 75001 Paris",required:false,section:"Parties"},
-    {id:"acheteur_nom",label:"Acheteur - Nom complet",type:"text",placeholder:"Jean Martin",required:true,section:"Parties"},
-    {id:"acheteur_adresse",label:"Adresse acheteur",type:"textarea",placeholder:"5 av. Victor Hugo 69000 Lyon",required:false,section:"Parties"},
-    {id:"article",label:"Article cede",type:"text",placeholder:"Veste en cuir noire taille S",required:true,section:"Article"},
-    {id:"description",label:"Description et etat",type:"textarea",placeholder:"Detailler l'etat, les defauts eventuels...",required:false,section:"Article"},
-    {id:"prix_vente",label:"Prix de cession (euros)",type:"number",placeholder:"35.00",required:true,section:"Transaction"},
-    {id:"date_vente",label:"Date de la vente",type:"date",placeholder:"",required:true,section:"Transaction"},
-    {id:"mode_paiement",label:"Mode de paiement",type:"select",options:["Virement","Paypal","Especes","CB","Lydia","Autre"],required:false,section:"Transaction"},
-    {id:"garanties",label:"Garanties / clauses",type:"textarea",placeholder:"Vendu en l'etat, sans recours possible...",required:false,section:"Conditions"},
-  ]},
+// Templates de marques pré-définis avec leurs champs extraits
+const PDF_BRAND_TEMPLATES = [
+  {
+    id:"dior", brand:"Dior", icon:"👜", grad:"linear-gradient(135deg,#1a1a1a,#4a4a4a)",
+    color:"#1a1a1a", shadow:"rgba(0,0,0,0.4)",
+    preview:"Boutique en ligne · Facture officielle",
+    fields:[
+      {id:"commande_num", label:"N° de commande", defaultVal:"2000006911"},
+      {id:"facture_num", label:"N° de facture", defaultVal:"2000009743"},
+      {id:"date_commande", label:"Date de commande", defaultVal:"13 déc. 2021"},
+      {id:"livraison_estimee", label:"Livraison estimée", defaultVal:"16 déc. 2021"},
+      {id:"client_nom", label:"Nom client", defaultVal:"Félix Odin"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"2 rue Sœur Bouvier"},
+      {id:"client_ville", label:"Ville", defaultVal:"69005 Lyon"},
+      {id:"client_tel", label:"Téléphone", defaultVal:"0781971798"},
+      {id:"ref_produit", label:"Référence produit", defaultVal:"35H118YJP_HO69_T44"},
+      {id:"tva_pct", label:"TVA %", defaultVal:"20%"},
+      {id:"prix_ht", label:"Prix HT", defaultVal:"712,36€"},
+      {id:"quantite", label:"Quantité", defaultVal:"1"},
+      {id:"sous_total", label:"Sous-total HT", defaultVal:"712,36 €"},
+      {id:"tva_montant", label:"TVA", defaultVal:"177,64 €"},
+      {id:"total", label:"Montant total", defaultVal:"890,00 €"},
+      {id:"mode_livraison", label:"Mode de livraison", defaultVal:"Livraison Standard"},
+      {id:"mode_paiement", label:"Mode de paiement", defaultVal:"VISA"},
+    ]
+  },
+  {
+    id:"chanel", brand:"Chanel", icon:"💎", grad:"linear-gradient(135deg,#000000,#2a2a2a)",
+    color:"#000", shadow:"rgba(0,0,0,0.5)",
+    preview:"31 rue Cambon Paris · Facture boutique",
+    fields:[
+      {id:"date_achat", label:"Date d'achat", defaultVal:"14/09/2021 14:34"},
+      {id:"facture_num", label:"N° Facture", defaultVal:"735179"},
+      {id:"client_nom", label:"Nom client", defaultVal:"Madame Léana BELKHIRI"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"22 ESPACE MEDITERRANEE"},
+      {id:"client_ville", label:"Ville", defaultVal:"66000 PERPIGNAN"},
+      {id:"ref_produit", label:"Référence", defaultVal:"AP0250Y01480C3906"},
+      {id:"designation", label:"Désignation", defaultVal:"Sac Caviar & Or Noir"},
+      {id:"taille", label:"Taille", defaultVal:"UNI"},
+      {id:"quantite", label:"Quantité", defaultVal:"1"},
+      {id:"prix_unitaire", label:"Prix unitaire", defaultVal:"2 700,00"},
+      {id:"total_ht", label:"Total HT", defaultVal:"2 250,00 EUR"},
+      {id:"tva_montant", label:"TVA 20%", defaultVal:"450,00 EUR"},
+      {id:"mode_paiement", label:"Mode de paiement", defaultVal:"ESPECES EUROS"},
+      {id:"total", label:"Total", defaultVal:"2 700,00 EUR"},
+    ]
+  },
+  {
+    id:"balenciaga", brand:"Balenciaga", icon:"👟", grad:"linear-gradient(135deg,#1a1a1a,#3a3a3a)",
+    color:"#222", shadow:"rgba(0,0,0,0.4)",
+    preview:"Sneaker Track · Facture boutique Paris",
+    fields:[
+      {id:"vendeur", label:"Vendeur", defaultVal:"D. Éric"},
+      {id:"facture_num", label:"N° Facture", defaultVal:"13659/00002587"},
+      {id:"date_facture", label:"Date facture", defaultVal:"05/02/2023"},
+      {id:"ref_produit", label:"Référence produit", defaultVal:"3607418732904"},
+      {id:"designation", label:"Désignation", defaultVal:"Sneaker Track pour Homme en Noir International Zippé"},
+      {id:"quantite", label:"Quantité", defaultVal:"1"},
+      {id:"pu_ht", label:"PU HT", defaultVal:"812.5"},
+      {id:"tva_pct", label:"TVA", defaultVal:"20%"},
+      {id:"pu_ttc", label:"PU TTC", defaultVal:"895,00"},
+      {id:"montant", label:"Montant", defaultVal:"895,00"},
+      {id:"mode_paiement", label:"Règlement", defaultVal:"Visa"},
+      {id:"total_ttc", label:"Total TTC", defaultVal:"895,00 E"},
+    ]
+  },
+  {
+    id:"footlocker", brand:"Foot Locker", icon:"👟", grad:"linear-gradient(135deg,#cc0000,#990000)",
+    color:"#cc0000", shadow:"rgba(204,0,0,0.4)",
+    preview:"Nike tuned 1 · Facture magasin",
+    fields:[
+      {id:"facture_num", label:"N° Facture", defaultVal:"1"},
+      {id:"date_vente", label:"Date de vente", defaultVal:"08/01/2023"},
+      {id:"client_nom", label:"Nom client", defaultVal:"M. louis Mitalio"},
+      {id:"client_adresse", label:"Adresse client", defaultVal:"44 avenue de clichy"},
+      {id:"client_ville", label:"Ville", defaultVal:"75018 Paris"},
+      {id:"designation", label:"Désignation", defaultVal:"nike tuned 1"},
+      {id:"ref_produit", label:"Référence", defaultVal:"145092"},
+      {id:"quantite", label:"Qté", defaultVal:"1"},
+      {id:"reduction", label:"Réduction", defaultVal:"45,00 30%"},
+      {id:"pu_ht", label:"PU HT", defaultVal:"105,00"},
+      {id:"tva_pct", label:"TVA", defaultVal:"20%"},
+      {id:"total_ht", label:"Total HT remisé", defaultVal:"105,00€"},
+      {id:"tva_montant", label:"Montant TVA", defaultVal:"21,00€"},
+      {id:"total_ttc", label:"Total TTC", defaultVal:"126,00€"},
+      {id:"mode_paiement", label:"Mode de règlement", defaultVal:"Espèces"},
+    ]
+  },
+  {
+    id:"micromania", brand:"Micromania", icon:"🎮", grad:"linear-gradient(135deg,#1a7a1a,#2d9e2d)",
+    color:"#1a7a1a", shadow:"rgba(26,122,26,0.4)",
+    preview:"PlayStation 5 · Facture commande",
+    fields:[
+      {id:"client_nom", label:"Nom client", defaultVal:"Yannis Montagne"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"53 avenue Maréchal Foch"},
+      {id:"client_ville", label:"Ville", defaultVal:"69006 Lyon"},
+      {id:"date_facture", label:"Date", defaultVal:"22/03/2021"},
+      {id:"facture_num", label:"N° Facture", defaultVal:"WE-2515502-874"},
+      {id:"commande_num", label:"N° Commande", defaultVal:"110821768"},
+      {id:"ref_produit", label:"Référence", defaultVal:"106097"},
+      {id:"designation", label:"Désignation", defaultVal:"PLAYSTATION 5 Alldigital"},
+      {id:"num_serie", label:"N° de série", defaultVal:"S011616256D"},
+      {id:"quantite", label:"Qté", defaultVal:"1"},
+      {id:"prix_ttc", label:"P.U. TTC", defaultVal:"399.99"},
+      {id:"total_ttc", label:"Total TTC", defaultVal:"414.98 €"},
+      {id:"mode_expedition", label:"Mode d'expédition", defaultVal:"Express"},
+    ]
+  },
+  {
+    id:"moncler", brand:"Moncler", icon:"🧥", grad:"linear-gradient(135deg,#0a0a0a,#2c2c2c)",
+    color:"#111", shadow:"rgba(0,0,0,0.5)",
+    preview:"Doudoune sans manche · Facture Champs-Élysées",
+    fields:[
+      {id:"facture_num", label:"N° Facture", defaultVal:"2021/pro/0562"},
+      {id:"commande_num", label:"N° Commande", defaultVal:"3000000012526902"},
+      {id:"designation", label:"Désignation", defaultVal:"DOUDOUNE SANS MANCHE"},
+      {id:"description", label:"Description", defaultVal:"Doudoune sans manche hommes"},
+      {id:"quantite", label:"Qté", defaultVal:"1"},
+      {id:"prix", label:"Prix", defaultVal:"790 €"},
+      {id:"total", label:"Total", defaultVal:"790€"},
+    ]
+  },
+  {
+    id:"nike1", brand:"Nike (Dunk Low)", icon:"✔️", grad:"linear-gradient(135deg,#ff6600,#cc4400)",
+    color:"#ff6600", shadow:"rgba(255,102,0,0.4)",
+    preview:"Nike Dunk Low x Off-White · Nike.com",
+    fields:[
+      {id:"facture_num", label:"N° Facture", defaultVal:"FR1012541503"},
+      {id:"commande_num", label:"N° Commande", defaultVal:"C00658582046"},
+      {id:"date_facture", label:"Date facture", defaultVal:"19/8/2021"},
+      {id:"client_nom", label:"Nom client", defaultVal:"Bruce Lecomtz Lotz"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"22 Rue Florent Schmitt"},
+      {id:"client_ville", label:"Ville", defaultVal:"54450 Blâmont FRANCE"},
+      {id:"produit_num", label:"N° produit", defaultVal:"DM1602"},
+      {id:"designation", label:"Désignation", defaultVal:"Chaussure Nike Dunk Low x Off-White ™"},
+      {id:"quantite", label:"Quantité", defaultVal:"1.00"},
+      {id:"prix_brut", label:"Prix Unitaire Brut", defaultVal:"179,99 €"},
+      {id:"prix_net", label:"Prix Unitaire Net", defaultVal:"149,99 €"},
+      {id:"prix_total", label:"Prix Total", defaultVal:"179,99 €"},
+      {id:"tva_pct", label:"TVA %", defaultVal:"20"},
+      {id:"total_ht", label:"Total Hors TVA", defaultVal:"149,99 €"},
+      {id:"tva_montant", label:"TVA", defaultVal:"30,00 €"},
+      {id:"total", label:"Montant Total", defaultVal:"179,99 €"},
+      {id:"mode_paiement", label:"Mode de Paiement", defaultVal:"Carte de Crédit"},
+    ]
+  },
+  {
+    id:"nike2", brand:"Nike (NOCTA)", icon:"✔️", grad:"linear-gradient(135deg,#ff6600,#cc4400)",
+    color:"#ff6600", shadow:"rgba(255,102,0,0.4)",
+    preview:"Sweat NOCTA Tech Fleece · Nike.com",
+    fields:[
+      {id:"facture_num", label:"N° Facture", defaultVal:"FR102081165"},
+      {id:"commande_num", label:"N° Commande", defaultVal:"C01254318056"},
+      {id:"date_facture", label:"Date facture", defaultVal:"29/7/2023"},
+      {id:"client_nom", label:"Nom client", defaultVal:"Jaber Moussa"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"11 rue de Molière"},
+      {id:"client_ville", label:"Ville", defaultVal:"14000 Caen FRANCE"},
+      {id:"produit_num", label:"N° produit", defaultVal:"FD8460"},
+      {id:"designation", label:"Désignation", defaultVal:"Sweat à capuche de survetement NOCTA Tech Fleece pour homme"},
+      {id:"quantite", label:"Quantité", defaultVal:"1.00"},
+      {id:"prix_brut", label:"Prix Unitaire Brut", defaultVal:"149,99 €"},
+      {id:"prix_net", label:"Prix Unitaire Net", defaultVal:"120 €"},
+      {id:"prix_total", label:"Prix Total", defaultVal:"149,99 €"},
+      {id:"tva_pct", label:"TVA %", defaultVal:"20"},
+      {id:"total_ht", label:"Total Hors TVA", defaultVal:"120 €"},
+      {id:"tva_montant", label:"TVA", defaultVal:"29,99 €"},
+      {id:"total", label:"Montant Total", defaultVal:"149,99 €"},
+      {id:"mode_paiement", label:"Mode de Paiement", defaultVal:"Carte de Crédit"},
+    ]
+  },
+  {
+    id:"prada", brand:"Prada", icon:"👜", grad:"linear-gradient(135deg,#1a1a1a,#3a3a3a)",
+    color:"#111", shadow:"rgba(0,0,0,0.5)",
+    preview:"Veste Re-Nylon · Prada Bruxelles",
+    fields:[
+      {id:"caisse", label:"Caisse", defaultVal:"1-00546394"},
+      {id:"date_achat", label:"Date", defaultVal:"27/12/2024 11:06 AM"},
+      {id:"transaction", label:"Transaction", defaultVal:"72346"},
+      {id:"client_nom", label:"Client", defaultVal:"Zakaria Ghzalal"},
+      {id:"client_tel", label:"Téléphone", defaultVal:"0046511523"},
+      {id:"ref_produit", label:"Référence", defaultVal:"SPS04WS 13001-130 8056382907396"},
+      {id:"designation", label:"Désignation", defaultVal:"Veste en Re-Nylon"},
+      {id:"quantite", label:"Quantité", defaultVal:"1"},
+      {id:"prix_ht", label:"Prix unitaire HT", defaultVal:"€850,00"},
+      {id:"tva_pct", label:"TVA", defaultVal:"0,00 %"},
+      {id:"total_ttc", label:"Montant Brut TTC", defaultVal:"€850,00"},
+      {id:"total", label:"Total Dû", defaultVal:"€850,00"},
+      {id:"mode_paiement", label:"Paiement", defaultVal:"carte de crédit"},
+    ]
+  },
+  {
+    id:"stockx", brand:"StockX", icon:"📦", grad:"linear-gradient(135deg,#0a0a0a,#2a2a2a)",
+    color:"#111", shadow:"rgba(0,0,0,0.4)",
+    preview:"Stone Island Logo Patch · StockX verified",
+    fields:[
+      {id:"client_nom", label:"Nom", defaultVal:"Name"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"Address"},
+      {id:"client_ville", label:"Ville / ZIP", defaultVal:"City, ZIP code"},
+      {id:"order_num", label:"Order Number", defaultVal:"96541101-96178924"},
+      {id:"designation", label:"Désignation", defaultVal:"Stone Island Logo Patch Crewneck Sweatshirt Black"},
+      {id:"taille", label:"Size", defaultVal:"M"},
+      {id:"couleur", label:"Colorway", defaultVal:"Black"},
+      {id:"style", label:"Style", defaultVal:"791563051 A0029"},
+      {id:"condition", label:"Condition", defaultVal:"New; 100% authentic"},
+    ]
+  },
+  {
+    id:"stoneisland", brand:"Stone Island", icon:"🧥", grad:"linear-gradient(135deg,#c8a84b,#a08030)",
+    color:"#c8a84b", shadow:"rgba(200,168,75,0.4)",
+    preview:"Compass-Patch Sweatshirt · Stoneisland.com",
+    fields:[
+      {id:"client_nom", label:"Nom client", defaultVal:"Andy Tasset"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"24 Rue Duployé 38100"},
+      {id:"client_ville", label:"Ville", defaultVal:"Grenoble France"},
+      {id:"commande_num", label:"N° Commande", defaultVal:"1520107413898"},
+      {id:"document_num", label:"N° Document", defaultVal:"269033924726"},
+      {id:"date_facture", label:"Date facture", defaultVal:"14 septembre 2023"},
+      {id:"date_expedition", label:"Date expédition", defaultVal:"15 septembre 2023"},
+      {id:"ref_produit", label:"Référence", defaultVal:"DO113G00N-O110042553"},
+      {id:"designation", label:"Article", defaultVal:"Compass-Patch Padded Sweatshirt - L"},
+      {id:"prix_ht", label:"Prix unitaire HT EUR", defaultVal:"208.00€"},
+      {id:"tva_montant", label:"TVA EUR", defaultVal:"52.00€"},
+      {id:"total_ht", label:"Montant total HT EUR", defaultVal:"258.00€"},
+      {id:"total_ttc", label:"Montant total TTC EUR", defaultVal:"310.00€"},
+      {id:"mode_paiement", label:"Méthode de paiement", defaultVal:"carte bancaire"},
+    ]
+  },
+  {
+    id:"supreme", brand:"Supreme", icon:"🔴", grad:"linear-gradient(135deg,#cc0000,#880000)",
+    color:"#cc0000", shadow:"rgba(204,0,0,0.4)",
+    preview:"The North Face Cargo Jacket · Supreme NY",
+    fields:[
+      {id:"order_num", label:"Order #", defaultVal:"7856023"},
+      {id:"date_shipped", label:"Date expédiée", defaultVal:"22 May 2020"},
+      {id:"client_nom", label:"Nom", defaultVal:"Nom Prénom"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"Adresse"},
+      {id:"client_ville", label:"Ville", defaultVal:"Ville, FRcodepostal"},
+      {id:"client_tel", label:"Téléphone", defaultVal:"XXXXXXXXXX"},
+      {id:"client_email", label:"Email", defaultVal:"mail"},
+      {id:"designation", label:"Désignation", defaultVal:"Supreme/The North Face Cargo Jacket"},
+      {id:"style", label:"Style", defaultVal:"Black"},
+      {id:"taille", label:"Size", defaultVal:"Extra Large"},
+      {id:"prix", label:"Prix", defaultVal:"€398.00"},
+      {id:"subtotal", label:"Subtotal", defaultVal:"€398.00"},
+      {id:"shipping", label:"Shipping", defaultVal:"€10.00"},
+      {id:"tva_montant", label:"VAT", defaultVal:"€79.60"},
+      {id:"total", label:"Total", defaultVal:"€477.60"},
+      {id:"tracking", label:"Tracking Number", defaultVal:"1Z1A612Y5DK1417686"},
+    ]
+  },
+  {
+    id:"zalando", brand:"Zalando", icon:"🟠", grad:"linear-gradient(135deg,#ff6600,#e55a00)",
+    color:"#ff6600", shadow:"rgba(255,102,0,0.4)",
+    preview:"Polo Ralph Lauren Sweat · Zalando.fr",
+    fields:[
+      {id:"client_nom", label:"Nom client", defaultVal:"Mme. DULEAU Sandrine"},
+      {id:"client_adresse", label:"Adresse", defaultVal:"14 Rue Jean Moulin"},
+      {id:"client_ville", label:"Ville", defaultVal:"10100 Romilly France"},
+      {id:"client_num", label:"N° client", defaultVal:"89069886962"},
+      {id:"commande_num", label:"N° commande", defaultVal:"10301090804976"},
+      {id:"document_num", label:"N° document", defaultVal:"203024104982"},
+      {id:"date_facture", label:"Date facture", defaultVal:"21 déc. 2024"},
+      {id:"date_expedition", label:"Date expédition", defaultVal:"21 déc. 2024"},
+      {id:"ref_produit", label:"Référence", defaultVal:"1NI178S04I-Q12000S000"},
+      {id:"designation", label:"Article", defaultVal:"POLO RALPH LAUREN – Sweat zippé - white"},
+      {id:"prix_ht", label:"Prix unitaire HT EUR", defaultVal:"140,00"},
+      {id:"tva_montant", label:"TVA EUR", defaultVal:"35,00"},
+      {id:"total_ht", label:"Montant total HT EUR", defaultVal:"140,00"},
+      {id:"total_ttc", label:"Montant total TTC EUR", defaultVal:"175,00"},
+      {id:"mode_paiement", label:"Méthode de paiement", defaultVal:"carte bancaire"},
+    ]
+  },
 ];
 
-function generatePDFDoc(template,values){
-  const dateStr=new Date().toLocaleDateString("fr-FR");
-  const timeStr=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-  let htmlContent="";
-  if(template.id==="facture"){
-    const prixHT=parseFloat(values.prix_ht)||0;
-    htmlContent='<div class="doc"><div class="header"><div class="logo-area"><div class="logo">ListAI Pro</div><div class="doc-type">FACTURE</div></div><div class="doc-meta"><div class="meta-row"><span>N</span><strong>'+(values.facture_num||"—")+'</strong></div><div class="meta-row"><span>Date</span><strong>'+(values.date_facture||dateStr)+'</strong></div><div class="meta-row"><span>Via</span><strong>'+(values.plateforme||"—")+'</strong></div></div></div><div class="parties"><div class="party"><div class="party-title">VENDEUR</div><div class="party-name">'+(values.vendeur_nom||"—")+'</div>'+(values.vendeur_email?'<div class="party-detail">'+values.vendeur_email+'</div>':"")+(values.vendeur_tel?'<div class="party-detail">'+values.vendeur_tel+'</div>':"")+'</div><div class="party-arrow">vers</div><div class="party"><div class="party-title">ACHETEUR</div><div class="party-name">'+(values.acheteur_nom||"—")+'</div>'+(values.acheteur_email?'<div class="party-detail">'+values.acheteur_email+'</div>':"")+'</div></div><table class="items-table"><thead><tr><th>Article</th><th>Description</th><th>Montant</th></tr></thead><tbody><tr><td><strong>'+(values.article_nom||"—")+'</strong></td><td>'+(values.article_desc||"")+'</td><td class="price">'+prixHT.toFixed(2)+' euros</td></tr></tbody><tfoot><tr class="total-row"><td colspan="2"><strong>TOTAL TTC</strong></td><td class="price total">'+prixHT.toFixed(2)+' euros</td></tr></tfoot></table><div class="payment-row"><span>Mode de paiement :</span><strong>'+(values.mode_paiement||"—")+'</strong></div>'+(values.notes?'<div class="notes"><strong>Notes :</strong> '+values.notes+'</div>':"")+'<div class="footer">Document genere par ListAI Pro - '+dateStr+' '+timeStr+'</div></div>';
-  } else if(template.id==="fiche_article"){
-    const prix=parseFloat(values.prix)||0;const prixAchat=parseFloat(values.prix_achat)||0;const marge=prixAchat>0?(prix-prixAchat).toFixed(2):null;
-    htmlContent='<div class="doc"><div class="header orange"><div class="logo-area"><div class="logo">ListAI Pro</div><div class="doc-type">FICHE ARTICLE</div></div><div class="big-price">'+prix.toFixed(2)+' euros</div></div><div class="article-title">'+(values.titre||"—")+'</div><div class="pills-grid">'+(values.marque?'<div class="pill"><span>Marque</span><strong>'+values.marque+'</strong></div>':"")+(values.taille?'<div class="pill"><span>Taille</span><strong>'+values.taille+'</strong></div>':"")+(values.couleur?'<div class="pill"><span>Couleur</span><strong>'+values.couleur+'</strong></div>':"")+(values.matiere?'<div class="pill"><span>Matiere</span><strong>'+values.matiere+'</strong></div>':"")+(values.etat?'<div class="pill"><span>Etat</span><strong>'+values.etat+'</strong></div>':"")+(values.plateforme?'<div class="pill"><span>Plateforme</span><strong>'+values.plateforme+'</strong></div>':"")+'</div>'+(values.description?'<div class="section-block"><div class="section-label">Description</div><div class="section-content">'+values.description+'</div></div>':"")+(values.hashtags?'<div class="section-block"><div class="section-label">Hashtags</div><div class="hashtags">'+values.hashtags+'</div></div>':"")+'<div class="price-recap"><div class="price-item"><span>Prix de vente</span><strong>'+prix.toFixed(2)+' euros</strong></div>'+(prixAchat>0?'<div class="price-item"><span>Prix achat</span><strong>'+prixAchat.toFixed(2)+' euros</strong></div>':"")+(marge!==null?'<div class="price-item marge"><span>Marge</span><strong class="'+(parseFloat(marge)>=0?"green":"red")+'">'+marge+' euros</strong></div>':"")+'</div>'+(values.ref_interne?'<div class="ref">Ref. : <strong>'+values.ref_interne+'</strong></div>':"")+'<div class="footer">Document genere par ListAI Pro - '+dateStr+' '+timeStr+'</div></div>';
-  } else if(template.id==="etiquette"){
-    htmlContent='<div class="doc etiquette-doc"><div class="header green"><div class="logo">ListAI Pro</div><div class="doc-type">ETIQUETTE COLIS</div></div><div class="etiquette-grid"><div class="etiquette-box from"><div class="etiquette-label">EXPEDITEUR</div><div class="etiquette-name">'+(values.expediteur_nom||"—")+'</div><div class="etiquette-addr">'+(values.expediteur_adresse||"").replace(/\n/g,"<br>")+'</div>'+(values.expediteur_tel?'<div class="etiquette-tel">Tel: '+values.expediteur_tel+'</div>':"")+'</div><div class="etiquette-arrow">vers</div><div class="etiquette-box to"><div class="etiquette-label">DESTINATAIRE</div><div class="etiquette-name">'+(values.dest_nom||"—")+'</div><div class="etiquette-addr">'+(values.dest_adresse||"").replace(/\n/g,"<br>")+'</div>'+(values.dest_tel?'<div class="etiquette-tel">Tel: '+values.dest_tel+'</div>':"")+'</div></div><div class="transport-bar"><div class="transport-item"><span>Transporteur</span><strong>'+(values.transporteur||"—")+'</strong></div>'+(values.poids?'<div class="transport-item"><span>Poids</span><strong>'+values.poids+' kg</strong></div>':"")+(values.ref_colis?'<div class="transport-item"><span>Reference</span><strong>'+values.ref_colis+'</strong></div>':"")+(values.contenu?'<div class="transport-item"><span>Contenu</span><strong>'+values.contenu+'</strong></div>':"")+'</div>'+(values.notes_exp?'<div class="notes">Instructions : '+values.notes_exp+'</div>':"")+'<div class="footer">ListAI Pro - '+dateStr+' '+timeStr+'</div></div>';
-  } else if(template.id==="contrat"){
-    const prix=parseFloat(values.prix_vente)||0;
-    htmlContent='<div class="doc"><div class="header blue"><div class="logo">ListAI Pro</div><div class="doc-type">ACCORD DE VENTE</div></div><div class="contrat-intro">Les soussignes ont convenu de la cession suivante :</div><div class="parties"><div class="party"><div class="party-title">VENDEUR</div><div class="party-name">'+(values.vendeur_nom||"—")+'</div>'+(values.vendeur_adresse?'<div class="party-detail">'+(values.vendeur_adresse||"").replace(/\n/g,"<br>")+'</div>':"")+'</div><div class="party-arrow">et</div><div class="party"><div class="party-title">ACHETEUR</div><div class="party-name">'+(values.acheteur_nom||"—")+'</div>'+(values.acheteur_adresse?'<div class="party-detail">'+(values.acheteur_adresse||"").replace(/\n/g,"<br>")+'</div>':"")+'</div></div><div class="section-block"><div class="section-label">Article cede</div><div class="article-title" style="font-size:16px">'+(values.article||"—")+'</div>'+(values.description?'<div class="section-content" style="margin-top:6px">'+values.description+'</div>':"")+'</div><div class="transaction-box"><div class="trans-row"><span>Prix de cession</span><strong class="big-price-inline">'+prix.toFixed(2)+' euros</strong></div><div class="trans-row"><span>Date</span><strong>'+(values.date_vente||"—")+'</strong></div><div class="trans-row"><span>Mode de paiement</span><strong>'+(values.mode_paiement||"—")+'</strong></div></div>'+(values.garanties?'<div class="section-block"><div class="section-label">Conditions</div><div class="section-content">'+values.garanties+'</div></div>':"")+'<div class="signatures"><div class="sig-box"><div class="sig-label">Signature vendeur</div><div class="sig-line"></div><div class="sig-name">'+(values.vendeur_nom||"")+'</div></div><div class="sig-box"><div class="sig-label">Signature acheteur</div><div class="sig-line"></div><div class="sig-name">'+(values.acheteur_nom||"")+'</div></div></div><div class="footer">Document genere par ListAI Pro - '+dateStr+' '+timeStr+' - Non contractuel sans signatures originales</div></div>';
-  }
-  const css="*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#f5f5f7;display:flex;justify-content:center;min-height:100vh;padding:24px}.doc{background:white;border-radius:16px;padding:32px;max-width:680px;width:100%;box-shadow:0 4px 32px rgba(0,0,0,0.08)}.header{border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#7C3AED,#2563EB);color:white}.header.orange{background:linear-gradient(135deg,#FF6B2B,#FF9500)}.header.green{background:linear-gradient(135deg,#059669,#10B981)}.header.blue{background:linear-gradient(135deg,#2563EB,#06B6D4)}.logo-area{display:flex;flex-direction:column}.logo{font-size:13px;font-weight:800;color:rgba(255,255,255,0.8);margin-bottom:4px}.doc-type{font-size:22px;font-weight:900;color:white}.big-price{font-size:32px;font-weight:900;color:white}.doc-meta{text-align:right;display:flex;flex-direction:column;gap:4px}.meta-row{display:flex;gap:8px;justify-content:flex-end;font-size:12px;color:rgba(255,255,255,0.8)}.meta-row strong{color:white}.parties{display:flex;align-items:center;gap:12px;margin-bottom:24px}.party{flex:1;background:#f5f5f7;border-radius:10px;padding:14px}.party-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#8e8e93;margin-bottom:6px}.party-name{font-size:15px;font-weight:700;color:#1d1d1f;margin-bottom:3px}.party-detail{font-size:12px;color:#6e6e73}.party-arrow{font-size:14px;color:#8e8e93;flex-shrink:0}.items-table{width:100%;border-collapse:collapse;margin-bottom:16px}.items-table th{background:#f5f5f7;padding:10px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;color:#8e8e93}.items-table td{padding:12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#1d1d1f;vertical-align:top}.items-table .price{text-align:right;font-weight:700;font-size:14px}.total-row{background:#f5f5f7}.total-row td{font-size:14px;padding:14px 12px}.total-row .total{font-size:18px;color:#7C3AED}.payment-row{background:#f5f5f7;border-radius:8px;padding:10px 14px;font-size:13px;color:#6e6e73;display:flex;gap:8px;align-items:center;margin-bottom:16px}.payment-row strong{color:#1d1d1f}.article-title{font-size:20px;font-weight:900;color:#1d1d1f;margin-bottom:16px}.pills-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}.pill{background:#f5f5f7;border-radius:8px;padding:8px 10px}.pill span{display:block;font-size:9px;font-weight:700;text-transform:uppercase;color:#8e8e93;margin-bottom:3px}.pill strong{font-size:13px;color:#1d1d1f}.price-recap{background:#f5f5f7;border-radius:10px;padding:14px;margin:16px 0;display:flex;flex-direction:column;gap:6px}.price-item{display:flex;justify-content:space-between;font-size:13px;color:#6e6e73}.price-item strong{color:#1d1d1f}.price-item.marge{border-top:1px solid #e5e5ea;padding-top:8px;margin-top:4px;font-weight:700}.green{color:#34c759!important}.red{color:#ff3b30!important}.hashtags{font-size:12px;color:#7C3AED;font-weight:600;line-height:1.8}.ref{font-size:11px;color:#8e8e93;margin-top:8px}.section-block{margin-bottom:16px}.section-label{font-size:10px;font-weight:800;text-transform:uppercase;color:#8e8e93;margin-bottom:6px}.section-content{font-size:13px;color:#1d1d1f;line-height:1.7;background:#f5f5f7;border-radius:8px;padding:12px}.etiquette-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}.etiquette-box{border-radius:10px;padding:16px}.etiquette-box.from{background:#f5f5f7;border:2px dashed #d1d1d6}.etiquette-box.to{background:#f0f5ff;border:2px solid #2563EB}.etiquette-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.2px;color:#8e8e93;margin-bottom:6px}.etiquette-name{font-size:18px;font-weight:900;color:#1d1d1f;margin-bottom:4px}.etiquette-addr{font-size:13px;color:#3a3a3c;line-height:1.6}.etiquette-tel{font-size:12px;color:#6e6e73;margin-top:4px}.etiquette-arrow{text-align:center;font-size:16px;color:#8e8e93;padding:4px 0}.transport-bar{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;background:#1d1d1f;border-radius:10px;padding:14px;margin-bottom:12px}.transport-item{display:flex;flex-direction:column;gap:2px}.transport-item span{font-size:9px;color:#8e8e93;text-transform:uppercase;font-weight:700}.transport-item strong{font-size:14px;color:white;font-weight:800}.contrat-intro{font-size:13px;color:#6e6e73;margin-bottom:20px;font-style:italic}.transaction-box{background:#f0f5ff;border-radius:10px;padding:16px;margin:16px 0;border:1px solid #bfdbfe}.trans-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#6e6e73;margin-bottom:8px}.trans-row:last-child{margin-bottom:0}.trans-row strong{color:#1d1d1f;font-size:14px}.big-price-inline{font-size:20px;font-weight:900;color:#2563EB}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:28px 0 16px}.sig-box{display:flex;flex-direction:column;gap:8px}.sig-label{font-size:10px;font-weight:700;text-transform:uppercase;color:#8e8e93}.sig-line{height:1px;background:#1d1d1f;margin-top:40px}.sig-name{font-size:11px;color:#6e6e73}.notes{background:#fff9f0;border-left:3px solid #ff9500;padding:12px;border-radius:0 8px 8px 0;font-size:12px;color:#3a3a3c;margin-bottom:16px;line-height:1.6}.footer{text-align:center;font-size:10px;color:#aeaeb2;margin-top:24px;padding-top:16px;border-top:1px solid #f0f0f0}@media print{body{padding:0;background:white}.doc{box-shadow:none;border-radius:0}}";
-  const win=window.open("","_blank");
-  if(!win){alert("Autorise les pop-ups pour generer le PDF !");return;}
-  win.document.write("<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"UTF-8\"><title>"+template.label+" - ListAI Pro</title><style>"+css+"</style></head><body>"+htmlContent+"</body></html>");
+async function analyzeCustomPDF(base64Data, mediaType, callClaudeFunc) {
+  const prompt = `Tu es un expert en extraction de données de documents PDF.
+Analyse ce PDF et extrait TOUS les champs texte modifiables (noms, dates, montants, références, adresses, désignations d'articles, etc.).
+
+Réponds UNIQUEMENT en JSON valide, format exact:
+{
+  "brand": "nom de la marque ou enseigne détectée",
+  "doc_type": "type de document (Facture, Reçu, Bon de commande, etc.)",
+  "fields": [
+    {"id": "identifiant_unique_sans_espaces", "label": "Libellé lisible", "value": "valeur actuelle dans le document"}
+  ]
+}
+
+Extrait TOUS les champs texte importants. Minimum 8 champs, maximum 25.`;
+
+  const content = [
+    {type:"document", source:{type:"base64", media_type:mediaType, data:base64Data}},
+    {type:"text", text:prompt}
+  ];
+  const body = {model:"claude-sonnet-4-6", max_tokens:2000, messages:[{role:"user", content}]};
+  const res = await fetch("/api/claude", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  if(!res.ok) throw new Error("Erreur API");
+  const data = await res.json();
+  const text = data.content?.filter(b=>b.type==="text").map(b=>b.text).join("") || "";
+  const clean = text.replace(/```json/gi,"").replace(/```/g,"").trim();
+  const start = clean.indexOf("{"); const end = clean.lastIndexOf("}");
+  if(start===-1||end===-1) throw new Error("JSON invalide");
+  return JSON.parse(clean.slice(start, end+1));
+}
+
+function generatePDFFromFields(brand, docType, fields) {
+  const dateStr = new Date().toLocaleDateString("fr-FR");
+  const timeStr = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+
+  const rows = fields.map(f =>
+    `<tr><td class="field-label">${f.label}</td><td class="field-value">${f.value||"—"}</td></tr>`
+  ).join("");
+
+  const htmlContent = `
+<div class="doc">
+  <div class="doc-header">
+    <div class="brand-name">${brand}</div>
+    <div class="doc-type">${docType}</div>
+  </div>
+  <table class="fields-table">
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="doc-footer">Document généré par ListAI Pro · ${dateStr} ${timeStr}</div>
+</div>`;
+
+  const css = `*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#f5f5f7;display:flex;justify-content:center;padding:32px;min-height:100vh}.doc{background:white;border-radius:16px;padding:40px;max-width:700px;width:100%;box-shadow:0 4px 40px rgba(0,0,0,0.1)}.doc-header{margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #1d1d1f}.brand-name{font-size:32px;font-weight:900;color:#1d1d1f;letter-spacing:-1px;margin-bottom:6px}.doc-type{font-size:13px;font-weight:700;color:#6e6e73;text-transform:uppercase;letter-spacing:1px}.fields-table{width:100%;border-collapse:collapse}.fields-table tr{border-bottom:1px solid #f0f0f0}.fields-table tr:last-child{border-bottom:none}.field-label{padding:12px 16px 12px 0;font-size:11px;font-weight:700;color:#8e8e93;text-transform:uppercase;letter-spacing:0.6px;width:40%;vertical-align:top}.field-value{padding:12px 0;font-size:14px;color:#1d1d1f;font-weight:500;line-height:1.5}.doc-footer{margin-top:32px;padding-top:16px;border-top:1px solid #f0f0f0;font-size:10px;color:#aeaeb2;text-align:center}@media print{body{padding:0;background:white}.doc{box-shadow:none;border-radius:0}}`;
+
+  const win = window.open("","_blank");
+  if(!win){alert("Autorise les pop-ups pour générer le PDF !");return;}
+  win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${brand} — ListAI Pro</title><style>${css}</style></head><body>${htmlContent}</body></html>`);
   win.document.close();win.focus();
-  setTimeout(function(){win.print();},600);
+  setTimeout(()=>win.print(),600);
 }
 
 function TabPDF({dark}){
-  const [selectedTemplate,setSelectedTemplate]=useState(null);
-  const [values,setValues]=useState({});
-  const [toastPDF,setToastPDF]=useState(null);
-  const setPDFVal=(id,val)=>setValues(prev=>({...prev,[id]:val}));
-  const resetPDF=()=>{setSelectedTemplate(null);setValues({});};
+  const [mode, setMode] = useState(null); // null | "brands" | "upload" | "ai_analyze" | "edit"
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [fields, setFields] = useState([]);
+  const [brandName, setBrandName] = useState("");
+  const [docType, setDocType] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+  const fileRef = useRef();
 
-  const handleGenerate=()=>{
-    if(!selectedTemplate)return;
-    const missing=selectedTemplate.fields.filter(f=>f.required&&!String(values[f.id]||"").trim());
-    if(missing.length>0){setToastPDF("Champ requis : "+missing[0].label);setTimeout(()=>setToastPDF(null),3000);return;}
-    generatePDFDoc(selectedTemplate,values);
-    setToastPDF("PDF genere ! Sauvegarde ou imprime depuis la fenetre.");
-    setTimeout(()=>setToastPDF(null),4000);
+  const showToast = (msg) => { setToastMsg(msg); setTimeout(()=>setToastMsg(null), 3500); };
+
+  const setField = (id, val) => setFields(prev => prev.map(f => f.id===id ? {...f, value:val} : f));
+
+  // Charge un template de marque
+  const loadBrandTemplate = (tmpl) => {
+    setSelectedBrand(tmpl);
+    setBrandName(tmpl.brand);
+    setDocType("Facture");
+    setFields(tmpl.fields.map(f => ({...f, value: f.defaultVal})));
+    setMode("edit");
   };
 
-  const groupedFields=selectedTemplate?selectedTemplate.fields.reduce((acc,f)=>{if(!acc[f.section])acc[f.section]=[];acc[f.section].push(f);return acc;},{}): {};
-  const requiredFields=selectedTemplate?selectedTemplate.fields.filter(f=>f.required):[];
-  const filledRequired=requiredFields.filter(f=>String(values[f.id]||"").trim());
-  const pct=requiredFields.length>0?Math.round((filledRequired.length/requiredFields.length)*100):100;
+  // Upload + analyse IA
+  const handleFileUpload = async (file) => {
+    if(!file || file.type !== "application/pdf") { showToast("⚠️ Fichier PDF requis"); return; }
+    setUploadedFile(file);
+    setAnalyzing(true);
+    setMode("ai_analyze");
+    try {
+      const base64 = await new Promise((res,rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const result = await analyzeCustomPDF(base64, "application/pdf");
+      setBrandName(result.brand || file.name.replace(".pdf",""));
+      setDocType(result.doc_type || "Document");
+      setFields((result.fields||[]).map((f,i) => ({
+        id: f.id || `field_${i}`,
+        label: f.label || `Champ ${i+1}`,
+        value: f.value || "",
+        defaultVal: f.value || ""
+      })));
+      setMode("edit");
+    } catch(e) {
+      console.error(e);
+      showToast("❌ Analyse échouée. Réessaie.");
+      setMode(null);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
-  return <div>
-    <Title dark={dark} sub="Genere des documents professionnels personnalises">PDF — Modificateur</Title>
+  const handleGenerate = () => {
+    generatePDFFromFields(brandName, docType, fields);
+    showToast("✓ PDF généré ! Sauvegarde depuis la fenêtre d'impression.");
+  };
 
-    {!selectedTemplate&&<div>
-      <div style={{fontSize:11,fontWeight:700,color:T.text2(dark),textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:12}}>Choisir un type de document</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        {PDF_TEMPLATES.map(t=>(
-          <div key={t.id} onClick={()=>{setSelectedTemplate(t);setValues({});}} style={{background:t.grad,borderRadius:16,padding:"20px 16px",cursor:"pointer",boxShadow:"0 8px 24px "+t.color+"44",position:"relative",overflow:"hidden",minHeight:100}}>
-            <div style={{position:"absolute",top:-15,right:-15,width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
-            <div style={{fontSize:28,marginBottom:8}}>{t.icon}</div>
-            <div style={{fontSize:13,fontWeight:800,color:"white",marginBottom:4,lineHeight:1.3}}>{t.label}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>{t.desc}</div>
-          </div>
-        ))}
+  const resetAll = () => { setMode(null); setSelectedBrand(null); setFields([]); setUploadedFile(null); setSearchQ(""); };
+
+  const filteredBrands = PDF_BRAND_TEMPLATES.filter(t =>
+    t.brand.toLowerCase().includes(searchQ.toLowerCase())
+  );
+
+  // ─── ÉCRAN ACCUEIL ───
+  if(!mode) return <div>
+    <Title dark={dark} sub="Modifie n'importe quel PDF en quelques secondes">📄 Éditeur PDF</Title>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+      <div onClick={()=>setMode("brands")} style={{background:"linear-gradient(135deg,#7C3AED,#2563EB)",borderRadius:20,padding:"24px 18px",cursor:"pointer",boxShadow:"0 8px 28px rgba(124,58,237,0.4)",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-15,right:-15,width:70,height:70,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
+        <div style={{fontSize:32,marginBottom:10}}>🏷️</div>
+        <div style={{fontSize:14,fontWeight:900,color:"white",marginBottom:4}}>Templates marques</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>13 marques · Dior, Nike, Chanel...</div>
       </div>
-      <Card dark={dark} style={{borderLeft:"3px solid "+GOLD}}>
-        <Label dark={dark}>Comment ca marche</Label>
-        {["Choisis le type de document","Remplis les champs (2 min)","Clique Generer - PDF professionnel","Sauvegarde ou imprime directement"].map((s,i)=>(
-          <div key={i} style={{display:"flex",gap:10,marginBottom:i<3?6:0}}>
-            <div style={{width:18,height:18,borderRadius:"50%",background:GRAD,color:"#1a1a2e",fontSize:10,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
-            <span style={{fontSize:12,color:T.text2(dark),lineHeight:1.5}}>{s}</span>
-          </div>
-        ))}
-      </Card>
-    </div>}
+      <div onClick={()=>fileRef.current.click()} style={{background:"linear-gradient(135deg,#FF6B2B,#FF9500)",borderRadius:20,padding:"24px 18px",cursor:"pointer",boxShadow:"0 8px 28px rgba(255,107,43,0.4)",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-15,right:-15,width:70,height:70,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
+        <div style={{fontSize:32,marginBottom:10}}>📤</div>
+        <div style={{fontSize:14,fontWeight:900,color:"white",marginBottom:4}}>Upload ton PDF</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>L'IA extrait tous les champs</div>
+      </div>
+    </div>
+    <input ref={fileRef} type="file" accept="application/pdf" hidden onChange={e=>e.target.files[0]&&handleFileUpload(e.target.files[0])}/>
 
-    {selectedTemplate&&<div>
-      <div style={{background:selectedTemplate.grad,borderRadius:16,padding:"16px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:24}}>{selectedTemplate.icon}</span>
-          <div>
-            <div style={{fontSize:15,fontWeight:900,color:"white"}}>{selectedTemplate.label}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>{selectedTemplate.desc}</div>
-          </div>
+    <Card dark={dark} style={{borderLeft:"3px solid #7C3AED"}}>
+      <Label dark={dark}>⚡ Comment ça marche</Label>
+      {[
+        ["1","Choisis un template marque ou uploade ton PDF"],
+        ["2","L'IA analyse et détecte tous les champs texte"],
+        ["3","Modifie les valeurs que tu veux changer"],
+        ["4","Génère le PDF modifié en un clic"],
+      ].map(([n,s])=>(
+        <div key={n} style={{display:"flex",gap:10,marginBottom:n<"4"?8:0}}>
+          <div style={{width:20,height:20,borderRadius:"50%",background:"linear-gradient(135deg,#7C3AED,#2563EB)",color:"white",fontSize:10,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{n}</div>
+          <span style={{fontSize:13,color:T.text2(dark),lineHeight:1.5}}>{s}</span>
         </div>
-        <button onClick={resetPDF} style={{padding:"6px 12px",borderRadius:20,border:"1.5px solid rgba(255,255,255,0.4)",background:"transparent",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Changer</button>
-      </div>
-
-      {Object.entries(groupedFields).map(([section,fields])=>(
-        <Card key={section} dark={dark} style={{marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:700,color:selectedTemplate.color,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:12}}>{section}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {fields.map(f=>(
-              <div key={f.id}>
-                <div style={{fontSize:11,fontWeight:600,color:T.text2(dark),marginBottom:5,display:"flex",gap:4,alignItems:"center"}}>
-                  {f.label}{f.required&&<span style={{color:"#ff3b30",fontSize:10}}>*</span>}
-                </div>
-                {f.type==="textarea"?
-                  <textarea value={values[f.id]||""} onChange={e=>setPDFVal(f.id,e.target.value)} placeholder={f.placeholder} rows={3} style={{width:"100%",padding:"10px 12px",border:"1.5px solid "+(values[f.id]?selectedTemplate.color+"60":T.border(dark)),borderRadius:10,fontSize:13,background:T.card2(dark),color:T.text(dark),outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"inherit",lineHeight:1.6}}/>
-                :f.type==="select"?
-                  <select value={values[f.id]||""} onChange={e=>setPDFVal(f.id,e.target.value)} style={{width:"100%",padding:"10px 12px",border:"1.5px solid "+(values[f.id]?selectedTemplate.color+"60":T.border(dark)),borderRadius:10,fontSize:13,background:T.card2(dark),color:values[f.id]?T.text(dark):T.text3(dark),outline:"none",boxSizing:"border-box",cursor:"pointer"}}>
-                    <option value="">Choisir</option>
-                    {f.options.map(o=><option key={o} value={o}>{o}</option>)}
-                  </select>
-                :
-                  <input type={f.type} value={values[f.id]||""} onChange={e=>setPDFVal(f.id,e.target.value)} placeholder={f.placeholder} style={{width:"100%",padding:"10px 12px",border:"1.5px solid "+(values[f.id]?selectedTemplate.color+"60":T.border(dark)),borderRadius:10,fontSize:13,background:T.card2(dark),color:T.text(dark),outline:"none",boxSizing:"border-box"}}/>
-                }
-              </div>
-            ))}
-          </div>
-        </Card>
       ))}
-
-      <Card dark={dark} style={{marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,color:T.text2(dark),fontWeight:600}}>Champs obligatoires</span>
-          <span style={{fontSize:12,fontWeight:800,color:pct===100?"#34c759":GOLD}}>{filledRequired.length}/{requiredFields.length} remplis</span>
-        </div>
-        <div style={{height:6,borderRadius:3,background:T.card2(dark),overflow:"hidden"}}>
-          <div style={{width:pct+"%",height:"100%",background:pct===100?"#34c759":GRAD,borderRadius:3,transition:"width 0.3s"}}/>
-        </div>
-      </Card>
-
-      <button onClick={handleGenerate} style={{width:"100%",padding:"15px 20px",borderRadius:14,border:"none",background:selectedTemplate.grad,color:"white",fontSize:15,fontWeight:800,cursor:"pointer",marginBottom:8}}>
-        Generer le PDF — {selectedTemplate.label}
-      </button>
-      <div style={{textAlign:"center",fontSize:11,color:T.text3(dark),lineHeight:1.5,marginBottom:16}}>
-        Une fenetre souvre - Appuie sur Enregistrer en PDF dans l'impression
-      </div>
-    </div>}
-
-    {toastPDF&&<Toast msg={toastPDF} onDone={()=>setToastPDF(null)}/>}
+    </Card>
+    {toastMsg&&<Toast msg={toastMsg} onDone={()=>setToastMsg(null)}/>}
   </div>;
+
+  // ─── GRILLE MARQUES ───
+  if(mode==="brands") return <div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+      <button onClick={resetAll} style={{width:32,height:32,borderRadius:10,border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:16,cursor:"pointer"}}>←</button>
+      <Title dark={dark} sub={`${PDF_BRAND_TEMPLATES.length} templates disponibles`}>🏷️ Templates marques</Title>
+    </div>
+
+    <div style={{marginBottom:14}}>
+      <Inp value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Rechercher une marque..." dark={dark}/>
+    </div>
+
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {filteredBrands.map(t=>(
+        <div key={t.id} onClick={()=>loadBrandTemplate(t)} style={{background:T.card(dark),border:`1px solid ${T.border(dark)}`,borderRadius:16,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,transition:"all 0.15s"}}>
+          <div style={{width:48,height:48,borderRadius:14,background:t.grad,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,boxShadow:`0 4px 12px ${t.shadow}`}}>
+            {t.icon}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:800,color:T.text(dark),marginBottom:3}}>{t.brand}</div>
+            <div style={{fontSize:11,color:T.text2(dark)}}>{t.preview}</div>
+          </div>
+          <div style={{fontSize:11,color:T.text3(dark),fontWeight:600}}>{t.fields.length} champs →</div>
+        </div>
+      ))}
+    </div>
+    {toastMsg&&<Toast msg={toastMsg} onDone={()=>setToastMsg(null)}/>}
+  </div>;
+
+  // ─── ANALYSE EN COURS ───
+  if(mode==="ai_analyze") return <div>
+    <Title dark={dark} sub="L'IA analyse ton document...">🤖 Analyse PDF</Title>
+    <Card dark={dark} style={{textAlign:"center",padding:32}}>
+      <Spin/>
+      <div style={{marginTop:16,fontSize:14,fontWeight:700,color:T.text(dark)}}>
+        {uploadedFile?.name}
+      </div>
+      <div style={{marginTop:8,fontSize:12,color:T.text2(dark)}}>
+        Détection des champs en cours...
+      </div>
+      {[
+        "📄 Lecture du document...",
+        "🔍 Détection des champs texte...",
+        "🏷️ Identification des valeurs...",
+        "✅ Préparation de l'éditeur..."
+      ].map((s,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginTop:10,justifyContent:"center"}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"#7C3AED"}}/>
+          <span style={{fontSize:12,color:T.text2(dark)}}>{s}</span>
+        </div>
+      ))}
+    </Card>
+  </div>;
+
+  // ─── ÉDITEUR DE CHAMPS ───
+  if(mode==="edit") return <div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+      <button onClick={resetAll} style={{width:32,height:32,borderRadius:10,border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:16,cursor:"pointer"}}>←</button>
+      <div>
+        <div style={{fontSize:17,fontWeight:900,color:T.text(dark)}}>{brandName}</div>
+        <div style={{fontSize:11,color:T.text2(dark)}}>{fields.length} champs détectés · {docType}</div>
+      </div>
+    </div>
+
+    {/* Barre de progression */}
+    <div style={{background:T.card(dark),border:`1px solid ${T.border(dark)}`,borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:11,color:T.text2(dark),fontWeight:600}}>Champs remplis</span>
+        <span style={{fontSize:11,fontWeight:800,color:"#34c759"}}>
+          {fields.filter(f=>f.value?.trim()).length}/{fields.length}
+        </span>
+      </div>
+      <div style={{height:4,borderRadius:2,background:T.card2(dark),overflow:"hidden"}}>
+        <div style={{width:`${fields.length>0?(fields.filter(f=>f.value?.trim()).length/fields.length)*100:0}%`,height:"100%",background:"linear-gradient(135deg,#7C3AED,#2563EB)",borderRadius:2,transition:"width 0.3s"}}/>
+      </div>
+    </div>
+
+    {/* Champs éditables */}
+    <Card dark={dark} style={{marginBottom:12}}>
+      <Label dark={dark}>✏️ Modifier les champs</Label>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {fields.map(f=>(
+          <div key={f.id}>
+            <div style={{fontSize:10,fontWeight:700,color:T.text3(dark),textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:4}}>
+              {f.label}
+            </div>
+            <input
+              type="text"
+              value={f.value||""}
+              onChange={e=>setField(f.id, e.target.value)}
+              style={{
+                width:"100%", padding:"10px 12px",
+                border:`1.5px solid ${f.value?.trim() ? "#7C3AED60" : T.border(dark)}`,
+                borderRadius:10, fontSize:13,
+                background:T.card2(dark), color:T.text(dark),
+                outline:"none", boxSizing:"border-box",
+                transition:"border-color 0.15s",
+                fontFamily:"inherit"
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    {/* Actions */}
+    <button onClick={handleGenerate} style={{width:"100%",padding:"15px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#7C3AED,#2563EB)",color:"white",fontSize:15,fontWeight:800,cursor:"pointer",boxShadow:"0 6px 20px rgba(124,58,237,0.4)",marginBottom:8,letterSpacing:"0.1px"}}>
+      📄 Générer le PDF modifié
+    </button>
+    <div style={{display:"flex",gap:8}}>
+      <button onClick={()=>{setFields(prev=>prev.map(f=>({...f,value:f.defaultVal||""})));}} style={{flex:1,padding:"10px",borderRadius:10,border:`1.5px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,fontWeight:700,cursor:"pointer"}}>
+        ↩ Réinitialiser
+      </button>
+      <button onClick={()=>{navigator.clipboard.writeText(fields.map(f=>`${f.label}: ${f.value}`).join("\n"));showToast("✓ Champs copiés !");}} style={{flex:1,padding:"10px",borderRadius:10,border:`1.5px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:12,fontWeight:700,cursor:"pointer"}}>
+        📋 Copier tout
+      </button>
+    </div>
+    <div style={{textAlign:"center",fontSize:11,color:T.text3(dark),marginTop:8}}>
+      Une fenêtre s'ouvrira · Clique sur <strong>Enregistrer en PDF</strong>
+    </div>
+
+    {toastMsg&&<Toast msg={toastMsg} onDone={()=>setToastMsg(null)}/>}
+  </div>;
+
+  return null;
 }
 
 // ── APP ROOT ──────────────────────────────────────────────────────────────────
@@ -1671,9 +2048,8 @@ export default function App(){
     {id:"reopt",icon:"🔄",label:"Ré-optimiseur",sub:"Relance une annonce qui stagne",grad:"linear-gradient(135deg,#F59E0B,#FF6B2B)",shadow:"rgba(245,158,11,0.4)"},
     {id:"ventes",icon:"📊",label:"Suivi des ventes",sub:`CA: ${ventes.reduce((s,v)=>s+(parseFloat(v.prix_vente)||0),0).toFixed(0)}€`,grad:"linear-gradient(135deg,#10B981,#059669)",shadow:"rgba(16,185,129,0.4)"},
     {id:"historique",icon:"🕓",label:"Historique",sub:`${history.length} annonce(s) générée(s)`,grad:"linear-gradient(135deg,#6366F1,#7C3AED)",shadow:"rgba(99,102,241,0.4)"},
-    {id:"pdf",icon:"📄",label:"Modifier un PDF",sub:"Factures, fiches, etiquettes",grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
+    {id:"pdf",icon:"📄",label:"Éditeur PDF",sub:"Modifie Dior, Nike, Chanel...",grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
     {id:"extension",icon:"🧩",label:"Extension Chrome",sub:"Installe & configure l'extension",grad:"linear-gradient(135deg,#FF6B2B,#7C3AED)",shadow:"rgba(124,58,237,0.4)"},
-    {id:"pdf",icon:"📄",label:"Modifier un PDF",sub:"Factures, fiches, etiquettes",grad:"linear-gradient(135deg,#0EA5E9,#7C3AED)",shadow:"rgba(14,165,233,0.4)"},
   ];
 
   return(
