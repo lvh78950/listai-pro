@@ -12,7 +12,9 @@ const SHIP = [{l:"Lettre suivie",p:2.99},{l:"Colissimo S",p:3.99},{l:"Colissimo 
 const ETAT = ["Neuf avec étiquette","Neuf sans étiquette","Très bon état","Bon état","Satisfaisant"];
 const ETAT_C = ["#34c759","#30d158","#007aff","#ff9500","#ff3b30"];
 const PLATFORMS = ["Vinted","Leboncoin","eBay","Depop","Vestiaire"];
-const TABS = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"outils",icon:"🛠️",label:"Outils"},{id:"pricing",icon:"💎",label:"Plans"}];
+const TABS_FR = [{id:"annonce",icon:"✦",label:"Annonce"},{id:"tendances",icon:"📈",label:"Tendances"},{id:"marge",icon:"💰",label:"Marge"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Réponses"},{id:"reopt",icon:"🔄",label:"Ré-opt."},{id:"ventes",icon:"📊",label:"Ventes"},{id:"historique",icon:"🕓",label:"Historique"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"outils",icon:"🛠️",label:"Outils"},{id:"pricing",icon:"💎",label:"Plans"}];
+const TABS_EN = [{id:"annonce",icon:"✦",label:"Listing"},{id:"tendances",icon:"📈",label:"Trends"},{id:"marge",icon:"💰",label:"Margin"},{id:"agent",icon:"🤖",label:"Agent"},{id:"stock",icon:"📦",label:"Stock"},{id:"reponses",icon:"💬",label:"Replies"},{id:"reopt",icon:"🔄",label:"Re-opt."},{id:"ventes",icon:"📊",label:"Sales"},{id:"historique",icon:"🕓",label:"History"},{id:"extension",icon:"🧩",label:"Extension"},{id:"pdf",icon:"📄",label:"PDF"},{id:"outils",icon:"🛠️",label:"Tools"},{id:"pricing",icon:"💎",label:"Plans"}];
+const TABS = TABS_FR;
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const supa = {
@@ -2005,23 +2007,37 @@ Prix: ${art.prix}€`;
   const handleAlert=async()=>{
     if(!alertQuery.trim()) return;
     setAlertLoading(true);setAlertResult(null);
-    const prompt=`Tu es expert revendeur. Analyse le marché Vinted pour "${alertQuery}". Réponds en JSON: {"article":"${alertQuery}","prix_min":XX,"prix_max":XX,"prix_moyen":XX,"tendance":"hausse|baisse|stable","conseil":"conseil en 1 phrase","prix_ideal":XX}`;
+    const prompt="Expert revendeur. Article: "+alertQuery+". Reponds UNIQUEMENT en JSON valide, PAS d apostrophe dans les valeurs, PAS d accent dans les cles, valeurs numeriques sans texte: {"article":""+alertQuery+"","prix_min":25,"prix_max":80,"prix_moyen":50,"prix_ideal":45,"tendance":"stable","conseil":"Conseil court sans apostrophe"}";
     try{
       const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:400,messages:[{role:"user",content:prompt}]})});
+        body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:300,messages:[{role:"user",content:prompt}]})});
       const data=await res.json();
       const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-      const clean=txt.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-      const s=clean.indexOf("{"),e=clean.lastIndexOf("}");
-      if(s>-1){
-        const r=JSON.parse(clean.slice(s,e+1));
+      // Ultra robust parsing - extract numbers via regex if JSON fails
+      let r=null;
+      try{
+        let clean=txt.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+        // Remove control chars and fix common issues
+        clean=clean.replace(/[\x00-\x1F\x7F]/g," ")
+                   .replace(/([{,]\s*)(\w+):/g,'$1"$2":')
+                   .replace(/:\s*'([^']*)'/g,':"$1"');
+        const s=clean.indexOf("{"),e=clean.lastIndexOf("}");
+        if(s>-1) r=JSON.parse(clean.slice(s,e+1));
+      }catch{
+        // Fallback: extract numbers with regex
+        const nums=(n)=>{const m=txt.match(new RegExp(n+'[^\\d]*(\\d+)'));return m?parseInt(m[1]):0;};
+        const tend=txt.includes("hausse")?"hausse":txt.includes("baisse")?"baisse":"stable";
+        r={article:alertQuery,prix_min:nums("min"),prix_max:nums("max"),prix_moyen:nums("moyen"),prix_ideal:nums("ideal")||nums("recommande"),tendance:tend,conseil:"Analyse basee sur le marche actuel"};
+      }
+      if(r&&r.prix_min>=0){
+        r.article=alertQuery;
         setAlertResult(r);
-        const newAlerts=[...alerts.filter(a=>a.article!==r.article),{...r,addedAt:new Date().toLocaleDateString("fr-FR")}];
+        const newAlerts=[...alerts.filter(a=>a.article!==alertQuery),{...r,addedAt:new Date().toLocaleDateString("fr-FR")}];
         setAlerts(newAlerts);
         localStorage.setItem("listai_alerts",JSON.stringify(newAlerts));
         setAlertQuery("");
       }
-    }catch(err){console.error(err);}
+    }catch(err){console.error("Alert error:",err);}
     setAlertLoading(false);
   };
 
@@ -2507,7 +2523,7 @@ export default function App(){
   const openTab=(t)=>{setTab(t);setHomeView(false);};
 
   const HOME_CARDS=[
-    {id:"annonce",icon:"⚡",label:"Générer une annonce",sub:"Photos → Annonce IA en 10s",grad:"linear-gradient(135deg,#7C3AED,#2563EB)",shadow:"rgba(124,58,237,0.5)"},
+    {id:"annonce",icon:"⚡",label:"Générer une annonce",sub:lang==="en"?"Photos → AI listing in 10s":"Photos → Annonce IA en 10s",grad:"linear-gradient(135deg,#7C3AED,#2563EB)",shadow:"rgba(124,58,237,0.5)"},
     {id:"tendances",icon:"📈",label:"Tendances & Marché",sub:"Score, prix idéal, calendrier",grad:"linear-gradient(135deg,#2563EB,#06B6D4)",shadow:"rgba(37,99,235,0.4)"},
     {id:"marge",icon:"💰",label:"Calculateur de marge",sub:"Bénéfice net, simulateur",grad:"linear-gradient(135deg,#FF6B2B,#FF9500)",shadow:"rgba(255,107,43,0.4)"},
     {id:"agent",icon:"🤖",label:"Agent IA",sub:"Favoris, offres, automatisation",grad:"linear-gradient(135deg,#7C3AED,#EC4899)",shadow:"rgba(124,58,237,0.4)"},
@@ -2607,9 +2623,9 @@ export default function App(){
         <div style={{background:GRAD,borderRadius:24,padding:"24px 20px",marginBottom:20,position:"relative",overflow:"hidden",boxShadow:"0 12px 40px rgba(124,58,237,0.4)"}}>
           <div style={{position:"absolute",top:-30,right:-30,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.08)"}}/>
           <div style={{position:"absolute",bottom:-40,right:20,width:80,height:80,borderRadius:"50%",background:"rgba(255,107,43,0.3)"}}/>
-          <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:6}}>Bonjour 👋</div>
+          <div style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:6}}>{lang==="en"?"Hello 👋":"Bonjour 👋"}</div>
           <div style={{fontSize:22,fontWeight:900,color:"white",marginBottom:4,letterSpacing:"-0.3px"}}>{session.user.email.split("@")[0]}</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:8}}>{history.length} annonce(s) · {stock.filter(s=>s.statut==="en_vente").length} en vente</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:8}}>{history.length} {lang==="en"?"listing(s)":"annonce(s)"} · {stock.filter(s=>s.statut==="en_vente").length} {lang==="en"?"for sale":"en vente"}</div>
           {/* Mini stats inline dans le hero */}
           {stock.filter(s=>s.statut==="vendu").length>0&&<div style={{display:"flex",gap:8,marginBottom:16}}>
             {[
@@ -2623,14 +2639,14 @@ export default function App(){
               </div>
             ))}
           </div>}
-          <button onClick={()=>openTab("annonce")} style={{padding:"10px 20px",borderRadius:12,border:"none",background:GRAD_O,color:"white",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 16px rgba(255,107,43,0.5)"}}>⚡ Nouvelle annonce</button>
+          <button onClick={()=>openTab("annonce")} style={{padding:"10px 20px",borderRadius:12,border:"none",background:GRAD_O,color:"white",fontSize:13,fontWeight:800,cursor:"pointer",boxShadow:"0 4px 16px rgba(255,107,43,0.5)"}}>{lang==="en"?"⚡ New listing":"⚡ Nouvelle annonce"}</button>
         </div>
 
         {/* ── VITRINE STOCK ──────────────────────────────────── */}
         {(stock.length>0||history.some(h=>h.photo))&&<div style={{marginBottom:20}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
-              <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>🛍️ Ma vitrine</div>
+              <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>{lang==="en"?"🛍️ My store":"🛍️ Ma vitrine"}</div>
               <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {history.filter(h=>h.photo).length} annonce(s) avec photo</div>
             </div>
             <button onClick={()=>openTab("stock")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>Voir tout →</button>
@@ -2714,7 +2730,7 @@ export default function App(){
               gap:6,minHeight:170,
             }}>
               <div style={{width:36,height:36,borderRadius:"50%",background:GRAD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"white"}}>⚡</div>
-              <div style={{fontSize:11,fontWeight:700,color:GOLD,textAlign:"center",lineHeight:1.3,padding:"0 8px"}}>Nouvelle annonce</div>
+              <div style={{fontSize:11,fontWeight:700,color:GOLD,textAlign:"center",lineHeight:1.3,padding:"0 8px"}}>{lang==="en"?"New listing":"Nouvelle annonce"}</div>
             </div>
           </div>
         </div>}
