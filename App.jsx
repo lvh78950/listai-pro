@@ -18,7 +18,10 @@ const TABS = TABS_FR;
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const supa = {
-  async select(table,filters,tok){const q=filters?"?"+Object.entries(filters).map(([k,v])=>`${k}=eq.${encodeURIComponent(v)}`).join("&")+"&order=created_at.desc&limit=100":"?order=created_at.desc&limit=100";const res=await fetch(`${SUPA_URL}/rest/v1/${table}${q}`,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});return res.json();},
+  async select(table,filters,tok){
+  // Use appropriate date column per table
+  const orderCol=table==="stock"?"date_ajout":table==="listings"?"created_at":"created_at";
+  const q=filters?"?"+Object.entries(filters).map(([k,v])=>`${k}=eq.${encodeURIComponent(v)}`).join("&")+`&order=${orderCol}.desc.nullslast&limit=200`:`?order=${orderCol}.desc.nullslast&limit=200`;const res=await fetch(`${SUPA_URL}/rest/v1/${table}${q}`,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});return res.json();},
   async insert(table,data,tok){const res=await fetch(`${SUPA_URL}/rest/v1/${table}`,{method:"POST",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(data)});const d=await res.json();return Array.isArray(d)?d[0]:d;},
   async update(table,id,data,tok){await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:"PATCH",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(data)});},
   async delete(table,id,tok){await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:"DELETE",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});},
@@ -2541,12 +2544,12 @@ export default function App(){
       // Show pricing modal on first login (once per session)
       const shownKey="listai_pricing_shown_"+s.user.id;
       if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
-      setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));
+      setStock(s.map(x=>({...x,dateAjout:x.date_ajout,photo:x.photo||""})));
       // Écoute les mises à jour de stock depuis l'extension Chrome
       window.addEventListener('listai_stock_updated', async () => {
         console.log('[ListAI App] Rechargement stock depuis extension...');
         const freshStock = await db.getStock(sess.user.id, sess.access_token);
-        setStock(freshStock.map(x=>({...x,dateAjout:x.date_ajout})));
+        setStock(freshStock.map(x=>({...x,dateAjout:x.date_ajout,photo:x.photo||""})));
       });
       setVentes(v);
     }catch{}
@@ -2725,7 +2728,7 @@ export default function App(){
             </div>
             <div style={{display:"flex",gap:6}}>
             <button onClick={async()=>{
-              if(session){const s=await db.getStock(session.user.id,session.access_token);setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));}
+              if(session){const s=await db.getStock(session.user.id,session.access_token);setStock(s.map(x=>({...x,dateAjout:x.date_ajout,photo:x.photo||""})));}
             }} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:11,cursor:"pointer"}}>🔄</button>
             <button onClick={()=>openTab("stock")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>Voir tout →</button>
           </div>
