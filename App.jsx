@@ -344,7 +344,7 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
 
 Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks.
 Format strict:
-{"titre":"max 60 chars accrocheur avec marque + modele + couleur","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"VOIR FORMAT CI-DESSOUS","hashtags":"#Tag1 #Tag2 #Tag3 ... (15-20 hashtags pertinents)","conseil":"un conseil pratique court"}
+{"titre":"OBLIGATOIRE: commence par ${marque||'MARQUE'} ${modele||''} - couleur - Taille ${taille||''} (max 60 chars)","categorie":"categorie Vinted","sous_categorie":"sous-categorie","marque":"marque","taille":"taille EU","couleur":"couleur principale","matiere":"matiere","etat":"${ETAT[etat]}","prix_recommande":"120","prix_mini":"90","description":"VOIR FORMAT CI-DESSOUS","hashtags":"#Tag1 #Tag2 #Tag3 ... (15-20 hashtags pertinents)","conseil":"un conseil pratique court"}
 
 FORMAT OBLIGATOIRE pour le champ description (respecte exactement les sauts de ligne avec \\n) :
 🔥 Description :\\nVends [description accrocheuse et vendeuse de l article en 2-3 phrases avec emojis, mentionne la collab si applicable, le style, la rarety].\\n\\n✅ [point etat 1]\\n✅ [point etat 2]\\n✅ [point etat 3]\\n✅ [point etat 4]\\n✅ Authentique, bien entretenu(e)\\n\\n📏 Taille : [taille EU / taille US si chaussure]\\n\\n💥 Envoi rapide, soigne et bien protege\\n[phrase sur le style et comment porter l article]\\n\\n————————————————\\n\\n[hashtags separes par des espaces]
@@ -359,9 +359,28 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
         parsed.prix_recommande=prix;
         parsed.prix_mini=String(Math.round(parseFloat(prix)*0.85));
       }
-      // Si marque/taille saisis → on les impose aussi
+      // Imposer marque/taille dans les champs
       if(marque) parsed.marque=marque;
       if(taille) parsed.taille=taille;
+      // Garantir que marque + modèle + taille sont dans le titre
+      if(marque||modele||taille){
+        const titreLower=(parsed.titre||"").toLowerCase();
+        let titre=parsed.titre||"";
+        // Si la marque n'est pas dans le titre → la forcer au début
+        if(marque&&!titreLower.includes(marque.toLowerCase())){
+          titre=marque+" "+titre;
+        }
+        // Si le modèle n'est pas dans le titre → l'ajouter après la marque
+        if(modele&&!titreLower.includes(modele.toLowerCase())){
+          titre=titre.replace(marque,marque+" "+modele).trim();
+        }
+        // Si la taille n'est pas dans le titre → l'ajouter à la fin
+        if(taille&&!titreLower.includes(taille.toLowerCase())){
+          titre=(titre+" - T"+taille).trim();
+        }
+        // Limiter à 60 chars
+        parsed.titre=titre.slice(0,60).trim();
+      }
       setResult(parsed);
       // Upload first photo to Supabase Storage → get persistent URL
       let photoUrl="";
