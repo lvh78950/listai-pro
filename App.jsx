@@ -336,7 +336,7 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
   useEffect(()=>{if(resultToShow){setResult(resultToShow.result);setStep(3);setResultToShow(null);}},[resultToShow]);
 
   const toB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(f);});
-  const addFiles=async files=>{const arr=Array.from(files).slice(0,10-images.length);const p=await Promise.all(arr.map(async f=>({base64:await toB64(f),type:f.type,url:URL.createObjectURL(f)})));setImages(prev=>[...prev,...p].slice(0,10));};
+  const addFiles=async files=>{const arr=Array.from(files).slice(0,2-images.length);const p=await Promise.all(arr.map(async f=>({base64:await toB64(f),type:f.type,url:URL.createObjectURL(f)})));setImages(prev=>[...prev,...p].slice(0,2));};
 
   const generate=async()=>{
     setLoading(true);setError(null);
@@ -416,31 +416,31 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
 
     {/* Step 1: Photos */}
     {step===1&&<div>
-      <Title dark={dark} sub="Ajoute jusqu'à 10 photos de ton article">📸 Tes photos</Title>
+      <Title dark={dark} sub="2 photos max : article + étiquette">📸 Tes photos</Title>
       <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);addFiles(e.dataTransfer.files);}}
-        onClick={()=>images.length<10&&fileRef.current.click()}
-        style={{border:`2px dashed ${dragOver?GOLD:T.border(dark)}`,borderRadius:16,padding:"40px 20px",textAlign:"center",cursor:images.length<10?"pointer":"default",background:dragOver?`${GOLD}08`:T.card(dark),transition:"all 0.2s",marginBottom:14}}>
+        onClick={()=>images.length<2&&fileRef.current.click()}
+        style={{border:`2px dashed ${dragOver?GOLD:T.border(dark)}`,borderRadius:16,padding:"40px 20px",textAlign:"center",cursor:images.length<2?"pointer":"default",background:dragOver?`${GOLD}08`:T.card(dark),transition:"all 0.2s",marginBottom:14}}>
         <div style={{fontSize:36,marginBottom:8}}>🖼️</div>
-        <p style={{margin:"0 0 4px",fontWeight:700,color:T.text(dark),fontSize:15}}>{images.length===0?"Glisse tes photos ici":`${images.length}/10 photo(s) ajoutée(s)`}</p>
-        <p style={{margin:0,fontSize:12,color:T.text2(dark)}}>{images.length<10?"ou clique pour sélectionner":"Maximum atteint"}</p>
+        <p style={{margin:"0 0 4px",fontWeight:700,color:T.text(dark),fontSize:15}}>{images.length===0?"Glisse tes photos ici":`${images.length}/2 photo(s) ajoutée(s)`}</p>
+        <p style={{margin:0,fontSize:12,color:T.text2(dark)}}>{images.length<2?"ou clique pour sélectionner":"Maximum 2 photos atteint"}</p>
         <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e=>addFiles(e.target.files)}/>
       </div>
 
-      {images.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+      {images.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
         {images.map((img,i)=><div key={i} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:`2px solid ${i===0?GOLD:T.border(dark)}`}}>
           <img src={img.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
           {i===0&&<div style={{position:"absolute",bottom:3,left:3,background:GOLD,color:"#1a1a2e",fontSize:7,fontWeight:900,padding:"2px 5px",borderRadius:3}}>COVER</div>}
           <button onClick={()=>setImages(p=>p.filter((_,j)=>j!==i))} style={{position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",background:"rgba(0,0,0,0.6)",color:"white",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>)}
-        {images.length<10&&<div onClick={()=>fileRef.current.click()} style={{aspectRatio:"1",borderRadius:10,border:`2px dashed ${T.border(dark)}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:T.card2(dark),fontSize:20,color:GOLD}}>+</div>}
+        {images.length<2&&<div onClick={()=>fileRef.current.click()} style={{aspectRatio:"1",borderRadius:10,border:`2px dashed ${T.border(dark)}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:T.card2(dark),fontSize:20,color:GOLD}}>+</div>}
       </div>}
 
       <Card dark={dark} style={{borderLeft:`3px solid ${GOLD}`,marginBottom:16}}>
         <Label dark={dark}>💡 Conseils photos</Label>
-        {["Fond blanc ou neutre uni","Lumière naturelle sans flash","4 angles minimum","Montrer les défauts honnêtement","Photo portée = +40% de vues"].map((t,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:i<4?6:0}}><span style={{color:GOLD,fontSize:10,marginTop:3}}>✦</span><span style={{fontSize:12,color:T.text2(dark),lineHeight:1.5}}>{t}</span></div>)}
+        {["Fond blanc ou neutre uni","Lumière naturelle sans flash","Photo 1 : article complet · Photo 2 : étiquette","Montrer les défauts honnêtement","Photo portée = +40% de vues"].map((t,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:i<4?6:0}}><span style={{color:GOLD,fontSize:10,marginTop:3}}>✦</span><span style={{fontSize:12,color:T.text2(dark),lineHeight:1.5}}>{t}</span></div>)}
       </Card>
 
-      <Btn onClick={()=>setStep(2)} disabled={images.length===0} full>Continuer {images.length>0&&`(${images.length} photo${images.length>1?"s":""})`} →</Btn>
+      <Btn onClick={()=>setStep(2)} disabled={images.length===0} full>Continuer {images.length>0&&`(${images.length}/2 photo${images.length>1?"s":""})`} →</Btn>
     </div>}
 
     {/* Step 2: Infos */}
@@ -952,7 +952,7 @@ function TabAgent({dark,session,history,stock,userPlan,setShowPricingModal}){
           <Label dark={dark} style={{marginBottom:0}}>Message template</Label>
           {(()=>{
       const lim=LIMITS[userPlan||"free"];
-      const key="agent_"+new Date().toISOString().slice(0,10);
+      const key="agent_"+new Date().toISOString().slice(0,2);
       const used=parseInt(sessionStorage.getItem(key)||"0");
       if(used>=lim.agent) return <button onClick={()=>setShowPricingModal(true)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:"#ff3b30",color:"white",fontSize:11,fontWeight:800,cursor:"pointer"}}>🚫 {used}/{lim.agent} — Upgrade</button>;
       return <Btn onClick={()=>{sessionStorage.setItem(key,String(used+1));genMsg();}} disabled={msgL} variant="outline" small>{msgL?"...":"✦ Générer"}</Btn>;
@@ -2828,3 +2828,5 @@ export default function App(){
     </div>
   );
 }
+
+  
