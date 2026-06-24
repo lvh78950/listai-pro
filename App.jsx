@@ -1110,7 +1110,18 @@ ${hashtags}`.trim();
   };
 
   return <div>
-    <Title dark={dark} sub="Gérez votre stock et suivez vos ventes">📦 Mon Stock</Title>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+      <div>
+        <div style={{fontSize:20,fontWeight:900,color:T.text(dark)}}>📦 Mon Stock</div>
+        <div style={{fontSize:12,color:T.text2(dark)}}>Gérez votre stock et suivez vos ventes</div>
+      </div>
+      <button onClick={async()=>{
+        const fresh=await db.getStock(session.user.id,session.access_token);
+        setStock(fresh.map(x=>({...x,dateAjout:x.date_ajout})));
+      }} style={{padding:"7px 14px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+        🔄 Actualiser
+      </button>
+    </div>
 
     {/* ── Stats dashboard ─────────────────────────────────────────────────── */}
     <div style={{background:dark?"linear-gradient(135deg,#1c1c1e,#2c2c2e)":"linear-gradient(135deg,#f8f8ff,#f0ebff)",borderRadius:20,padding:16,marginBottom:14,border:`1px solid ${GOLD}30`}}>
@@ -2531,6 +2542,12 @@ export default function App(){
       const shownKey="listai_pricing_shown_"+s.user.id;
       if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
       setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));
+      // Écoute les mises à jour de stock depuis l'extension Chrome
+      window.addEventListener('listai_stock_updated', async () => {
+        console.log('[ListAI App] Rechargement stock depuis extension...');
+        const freshStock = await db.getStock(sess.user.id, sess.access_token);
+        setStock(freshStock.map(x=>({...x,dateAjout:x.date_ajout})));
+      });
       setVentes(v);
     }catch{}
     setLoading(false);
@@ -2706,7 +2723,12 @@ export default function App(){
               <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>{lang==="en"?"🛍️ My store":"🛍️ Ma vitrine"}</div>
               <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {history.filter(h=>h.photo).length} annonce(s) avec photo</div>
             </div>
+            <div style={{display:"flex",gap:6}}>
+            <button onClick={async()=>{
+              if(session){const s=await db.getStock(session.user.id,session.access_token);setStock(s.map(x=>({...x,dateAjout:x.date_ajout})));}
+            }} style={{padding:"5px 10px",borderRadius:20,border:`1px solid ${T.border(dark)}`,background:"transparent",color:T.text2(dark),fontSize:11,cursor:"pointer"}}>🔄</button>
             <button onClick={()=>openTab("stock")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${GOLD}`,background:`${GOLD}15`,color:GOLD,fontSize:11,fontWeight:700,cursor:"pointer"}}>Voir tout →</button>
+          </div>
           </div>
 
           {/* Filtres statut */}
@@ -2828,5 +2850,3 @@ export default function App(){
     </div>
   );
 }
-
-  
