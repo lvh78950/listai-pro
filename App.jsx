@@ -323,6 +323,9 @@ function TabAnnonce({dark,session,history,setHistory,resultToShow,setResultToSho
   const [prix,setPrix]=useState("");
   const [etat,setEtat]=useState(0);
   const [infos,setInfos]=useState("");
+  const [modele,setModele]=useState("");
+  const [marque,setMarque]=useState("");
+  const [taille,setTaille]=useState("");
   const [loading,setLoading]=useState(false);
   const [result,setResult]=useState(null);
   const [error,setError]=useState(null);
@@ -351,6 +354,14 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
       const text=await callClaude(prompt,images);
       const parsed=pj(text);
       if(!parsed||!parsed.titre)throw new Error("JSON invalide");
+      // Si l'utilisateur a mis un prix → on l'impose dans le résultat
+      if(prix){
+        parsed.prix_recommande=prix;
+        parsed.prix_mini=String(Math.round(parseFloat(prix)*0.85));
+      }
+      // Si marque/taille saisis → on les impose aussi
+      if(marque) parsed.marque=marque;
+      if(taille) parsed.taille=taille;
       setResult(parsed);
       // Upload first photo to Supabase Storage → get persistent URL
       let photoUrl="";
@@ -370,7 +381,7 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
     finally{setLoading(false);}
   };
 
-  const reset=()=>{setImages([]);setPrix("");setInfos("");setResult(null);setError(null);setEtat(0);setStep(1);};
+  const reset=()=>{setImages([]);setPrix("");setInfos("");setResult(null);setError(null);setEtat(0);setModele("");setMarque("");setTaille("");setStep(1);};
 
   return <div>
     {/* Stepper */}
@@ -426,17 +437,44 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
         </div>
       </Card>
 
+      {/* Marque + Modèle */}
       <Card dark={dark}>
-        <Label dark={dark}>Prix souhaité (optionnel)</Label>
-        <div style={{display:"flex",border:`1.5px solid ${T.border(dark)}`,borderRadius:10,overflow:"hidden"}}>
-          <input type="number" value={prix} onChange={e=>setPrix(e.target.value)} placeholder="Ex: 25" style={{flex:1,padding:"11px 14px",border:"none",fontSize:15,fontWeight:600,background:"transparent",color:T.text(dark),outline:"none"}}/>
-          <div style={{padding:"11px 14px",background:T.card2(dark),fontSize:14,fontWeight:700,color:GOLD,borderLeft:`1.5px solid ${T.border(dark)}`}}>€</div>
+        <Label dark={dark}>Marque & Modèle</Label>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div>
+            <div style={{fontSize:11,color:T.text2(dark),marginBottom:5,fontWeight:600}}>Marque <span style={{color:"#ff3b30"}}>*</span></div>
+            <Inp value={marque} onChange={e=>setMarque(e.target.value)} placeholder="Ex: Nike, Zara..." dark={dark}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:T.text2(dark),marginBottom:5,fontWeight:600}}>Modèle</div>
+            <Inp value={modele} onChange={e=>setModele(e.target.value)} placeholder="Ex: Air Max 95..." dark={dark}/>
+          </div>
+        </div>
+      </Card>
+
+      {/* Taille + Prix */}
+      <Card dark={dark}>
+        <Label dark={dark}>Taille & Prix</Label>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div>
+            <div style={{fontSize:11,color:T.text2(dark),marginBottom:5,fontWeight:600}}>Taille</div>
+            <Inp value={taille} onChange={e=>setTaille(e.target.value)} placeholder="Ex: M, 42, XL..." dark={dark}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:T.text2(dark),marginBottom:5,fontWeight:600}}>Prix souhaité</div>
+            <div style={{display:"flex",border:`1.5px solid ${T.border(dark)}`,borderRadius:10,overflow:"hidden"}}>
+              <input type="number" value={prix} onChange={e=>setPrix(e.target.value)} placeholder="Ex: 25" style={{flex:1,padding:"10px 12px",border:"none",fontSize:14,fontWeight:600,background:"transparent",color:T.text(dark),outline:"none"}}/>
+              <div style={{padding:"10px 12px",background:T.card2(dark),fontSize:13,fontWeight:700,color:GOLD,borderLeft:`1.5px solid ${T.border(dark)}`}}>€</div>
+            </div>
+            {prix&&<div style={{fontSize:10,color:"#34c759",marginTop:4,fontWeight:600}}>✓ Prix fixé à {prix}€</div>}
+            {!prix&&<div style={{fontSize:10,color:T.text3(dark),marginTop:4}}>Vide = IA estime le prix</div>}
+          </div>
         </div>
       </Card>
 
       <Card dark={dark}>
-        <Label dark={dark}>Notes (optionnel)</Label>
-        <Txta value={infos} onChange={e=>setInfos(e.target.value)} placeholder="Ex: taille M mais fait plutôt S, légère usure sur la manche gauche..." dark={dark} rows={3}/>
+        <Label dark={dark}>Notes supplémentaires (optionnel)</Label>
+        <Txta value={infos} onChange={e=>setInfos(e.target.value)} placeholder="Ex: légère usure sur la manche gauche, vendu sans boîte..." dark={dark} rows={2}/>
       </Card>
 
       {error&&<div style={{background:"#fff2f2",border:"1px solid #ffd0d0",borderRadius:10,padding:12,marginBottom:12,color:"#ff3b30",fontSize:13}}>❌ {error}</div>}
