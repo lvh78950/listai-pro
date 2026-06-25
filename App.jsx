@@ -19,9 +19,9 @@ const TABS = TABS_FR;
 // ── SUPABASE ──────────────────────────────────────────────────────────────────
 const supa = {
   async select(table,filters,tok){
-  // Use appropriate date column per table
-  const orderCol=table==="stock"?"date_ajout":table==="listings"?"created_at":"created_at";
-  const q=filters?"?"+Object.entries(filters).map(([k,v])=>`${k}=eq.${encodeURIComponent(v)}`).join("&")+`&order=${orderCol}.desc.nullslast&limit=200`:`?order=${orderCol}.desc.nullslast&limit=200`;const res=await fetch(`${SUPA_URL}/rest/v1/${table}${q}`,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});return res.json();},
+  // Use appropriate date column per table — fallback to id if date col missing
+  const orderCol=table==="stock"?"id":table==="listings"?"created_at":"created_at";
+  const q=filters?"?"+Object.entries(filters).map(([k,v])=>`${k}=eq.${encodeURIComponent(v)}`).join("&")+`&order=${orderCol}.desc&limit=200`:`?order=${orderCol}.desc&limit=200`;const res=await fetch(`${SUPA_URL}/rest/v1/${table}${q}`,{headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});return res.json();},
   async insert(table,data,tok){const res=await fetch(`${SUPA_URL}/rest/v1/${table}`,{method:"POST",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(data)});const d=await res.json();return Array.isArray(d)?d[0]:d;},
   async update(table,id,data,tok){await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:"PATCH",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"},body:JSON.stringify(data)});},
   async delete(table,id,tok){await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:"DELETE",headers:{apikey:SUPA_KEY,Authorization:`Bearer ${tok||SUPA_KEY}`,"Content-Type":"application/json"}});},
@@ -86,7 +86,11 @@ const db = {
       return "free";
     }catch(e){console.error("getUserPlan error:",e);return "free";}
   },
-  async getStock(uid,tok){const d=await supa.select("stock",{user_id:uid},tok);return Array.isArray(d)?d:[];},
+  async getStock(uid,tok){
+    const d=await supa.select("stock",{user_id:uid},tok);
+    if(!Array.isArray(d)){console.error("[ListAI] getStock error:",d);return null;} // null = keep current
+    return d;
+  },
   async addStock(uid,a,tok){return supa.insert("stock",{user_id:uid,titre:a.titre,marque:a.marque||"",taille:a.taille||"",prix:a.prix||"",plateforme:a.plateforme||"Vinted",etat:a.etat||"",notes:a.notes||"",statut:a.statut||"en_vente",date_ajout:a.dateAjout||"",photo:a.photo||""},tok);},
   async updStock(uid,id,fields,tok){return supa.update("stock",id,{...fields,updated_at:new Date().toISOString()},tok);},
   async delStock(uid,id,tok){return supa.delete("stock",id,tok);},
@@ -2544,7 +2548,7 @@ export default function App(){
       // Show pricing modal on first login (once per session)
       const shownKey="listai_pricing_shown_"+s.user.id;
       if(!sessionStorage.getItem(shownKey)){sessionStorage.setItem(shownKey,"1");setTimeout(()=>setShowPricingModal(true),1200);}
-      setStock(s.map(x=>({...x,dateAjout:x.date_ajout,photo:x.photo||""})));
+      if(s!==null) setStock(s.map(x=>({...x,dateAjout:x.date_ajout,photo:x.photo||""})));
       // Écoute les mises à jour de stock depuis l'extension Chrome
       window.addEventListener('listai_stock_updated', async () => {
         console.log('[ListAI App] Rechargement stock depuis extension...');
