@@ -2786,8 +2786,13 @@ export default function App(){
               );
             })}
 
-            {/* Annonces générées avec photo (depuis l'onglet Annonce) */}
-            {history.filter(h=>h.photo).map((h,i)=>(
+            {/* Annonces générées avec photo — sauf si déjà en vente dans le stock */}
+            {history.filter(h=>{
+              if(!h.photo) return false;
+              // Exclut si le titre est déjà dans le stock en_vente
+              const titre=h.result?.titre?.toLowerCase().trim();
+              return !titre||!stock.some(s=>s.statut==="en_vente"&&s.titre?.toLowerCase().trim()===titre);
+            }).map((h,i)=>(
               <div key={"h"+i} onClick={()=>openTab("historique")} style={{
                 flexShrink:0,width:130,borderRadius:16,overflow:"hidden",cursor:"pointer",
                 background:dark?"#1c1c1e":"#ffffff",
