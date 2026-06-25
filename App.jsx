@@ -1133,6 +1133,17 @@ ${hashtags}`.trim();
     {/* ── Stats dashboard ─────────────────────────────────────────────────── */}
     <div style={{background:dark?"linear-gradient(135deg,#1c1c1e,#2c2c2e)":"linear-gradient(135deg,#f8f8ff,#f0ebff)",borderRadius:20,padding:16,marginBottom:14,border:`1px solid ${GOLD}30`}}>
       <div style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:12}}>📊 Mes stats de vente</div>
+      {/* CA potentiel */}
+      {(()=>{
+        const caPotentiel=stock.filter(s=>s.statut==="en_vente").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);
+        return caPotentiel>0&&<div style={{background:`${GOLD}15`,border:`1px solid ${GOLD}40`,borderRadius:14,padding:"12px 16px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:GOLD,textTransform:"uppercase",letterSpacing:"0.5px"}}>💰 CA potentiel si tout vendu</div>
+            <div style={{fontSize:11,color:T.text2(dark),marginTop:2}}>{nbEnVente} article{nbEnVente>1?"s":""} en vente</div>
+          </div>
+          <div style={{fontSize:28,fontWeight:900,color:GOLD}}>{caPotentiel.toFixed(0)}€</div>
+        </div>;
+      })()}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
         <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
           <div style={{fontSize:24,fontWeight:900,color:"#007aff"}}>{nbEnVente}</div>
@@ -1144,7 +1155,7 @@ ${hashtags}`.trim();
         </div>
         <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
           <div style={{fontSize:24,fontWeight:900,color:GOLD}}>{totalCA.toFixed(0)}€</div>
-          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>CA total</div>
+          <div style={{fontSize:10,color:T.text2(dark),fontWeight:600,marginTop:2}}>CA total encaissé</div>
         </div>
         <div style={{background:dark?"#2c2c2e":"white",borderRadius:14,padding:"12px 14px"}}>
           <div style={{fontSize:24,fontWeight:900,color:"#ff9500"}}>{prixMoyen}€</div>
@@ -2728,7 +2739,7 @@ export default function App(){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <div style={{fontSize:15,fontWeight:800,color:dark?"#f5f5f7":"#1d1d1f",letterSpacing:"-0.2px"}}>{lang==="en"?"🛍️ My store":"🛍️ Ma vitrine"}</div>
-              <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{stock.filter(s=>s.statut==="en_vente").length} en vente · {history.filter(h=>h.photo).length} annonce(s) avec photo</div>
+              <div style={{fontSize:11,color:dark?"#aeaeb2":"#6e6e73"}}>{(()=>{const ca=stock.filter(s=>s.statut==="en_vente").reduce((sum,s)=>sum+(parseFloat(s.prix)||0),0);return `${stock.filter(s=>s.statut==="en_vente").length} en vente${ca>0?" · "+ca.toFixed(0)+"€ potentiels":""} · ${history.filter(h=>h.photo&&!stock.some(s=>s.statut==="en_vente"&&s.titre?.toLowerCase()===h.result?.titre?.toLowerCase())).length} annonce(s)`;})()}</div>
             </div>
             <div style={{display:"flex",gap:6}}>
             <button onClick={async()=>{
