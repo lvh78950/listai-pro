@@ -106,8 +106,33 @@ function loadSession(){try{return JSON.parse(localStorage.getItem("listai_sessio
 function saveSession(s){try{localStorage.setItem("listai_session",JSON.stringify(s));}catch{}}
 function clearSession(){try{localStorage.removeItem("listai_session");}catch{}}
 
+async function compressImageForAPI(base64, type){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      // Max 1000px, quality 0.6 for API calls
+      const MAX=1000;
+      let w=img.naturalWidth,h=img.naturalHeight;
+      if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+      else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+      const canvas=document.createElement("canvas");
+      canvas.width=w;canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      const dataUrl=canvas.toDataURL("image/jpeg",0.6);
+      resolve(dataUrl.split(",")[1]); // retourne juste le base64
+    };
+    img.onerror=()=>resolve(base64); // fallback
+    img.src=`data:${type};base64,${base64}`;
+  });
+}
+
 async function callClaude(prompt,images=[]){
-  const content=[...images.map(i=>({type:"image",source:{type:"base64",media_type:i.type,data:i.base64}})),{type:"text",text:prompt}];
+  // Compresse les images avant envoi (photos téléphone = trop lourdes)
+  const compressedImages=await Promise.all(images.map(async i=>{
+    const compressed=await compressImageForAPI(i.base64,i.type||"image/jpeg");
+    return {...i,base64:compressed,type:"image/jpeg"};
+  }));
+  const content=[...compressedImages.map(i=>({type:"image",source:{type:"base64",media_type:"image/jpeg",data:i.base64}})),{type:"text",text:prompt}];
   const body={model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content}]};
   const res=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -402,7 +427,7 @@ Important: prix_recommande et prix_mini = nombres SANS symbole euro. Tous les \\
       setStep(3);
     }catch(e){
       console.error("Erreur génération:",e);
-      setError("Génération échouée. Vérifie ta connexion et réessaie. Si le problème persiste, la clé API Mistral est peut-être expirée.");
+      setError(`Génération échouée : ${e.message||"Erreur inconnue"}. ${e.message?.includes("413")||e.message?.includes("too large")?"Tes photos sont trop lourdes — essaie avec des photos moins grandes.":"Vérifie ta connexion et réessaie."}`);
     }
     finally{setLoading(false);}
   };
