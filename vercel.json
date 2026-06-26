@@ -1,3 +1,5 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/((?!listai-extension-v2\\.zip).+)", "destination": "/index.html" }
+  ]
 }
